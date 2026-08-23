@@ -3,7 +3,7 @@ const http       = require('http');
 const { Server } = require('socket.io');
 const { v4: uuidv4 } = require('uuid');
 const path       = require('path');
-const Database   = require('better-sqlite3');
+const fs         = require('fs');
 
 const app    = express();
 const server = http.createServer(app);
@@ -14,48 +14,37 @@ const io     = new Server(server, {
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// ─── Banco de dados SQLite ────────────────────────────────────────────────────
-const db = new Database(path.join(__dirname, 'telas.db'));
+// ─── Banco de dados simples em JSON ──────────────────────────────────────────
+// No Railway usa /tmp que é gravável. Localmente usa a pasta do projeto.
+const DB_PATH = process.env.RAILWAY_ENVIRONMENT
+  ? '/tmp/telas-db.json'
+  : path.join(__dirname, 'telas-db.json');
 
-// Cria tabelas se não existirem
-db.exec(`
-  CREATE TABLE IF NOT EXISTS whitelist (
-    ip        TEXT PRIMARY KEY,
-    label     TEXT NOT NULL DEFAULT '',
-    added_at  TEXT NOT NULL DEFAULT (datetime('now','localtime'))
-  );
-
-  CREATE TABLE IF NOT EXISTS admin_config (
-    key   TEXT PRIMARY KEY,
-    value TEXT NOT NULL
-  );
-
-  CREATE TABLE IF NOT EXISTS access_log (
-    id         INTEGER PRIMARY KEY AUTOINCREMENT,
-    ip         TEXT NOT NULL,
-    action     TEXT NOT NULL,
-    detail     TEXT DEFAULT '',
-    created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
-  );
-`);
-
-// Senha padrão: admin123 (pode trocar pelo painel)
-const configGet = db.prepare('SELECT value FROM admin_config WHERE key = ?');
-const configSet = db.prepare('INSERT OR REPLACE INTO admin_config (key, value) VALUES (?, ?)');
-
-function getConfig(key, fallback) {
-  const row = configGet.get(key);
-  return row ? row.value : fallback;
+function loadDb() {
+  try {
+    if (fs.existsSync(DB_PATH)) {
+      return JSON.parse(fs.readFileSync(DB_PATH, 'utf8'));
+    }
+  } catch {}
+  return {
+    whitelist: {},        // { ip: { ip, label, added_at } }
+    config: {
+      admin_password: 'admin123',
+      whitelist_mode: 'off'
+    },
+    logs: []              // [{ id, ip, action, detail, created_at }]
+  };
 }
 
-// Garante senha padrão se não existir
-if (!configGet.get('admin_password')) {
-  configSet.run('admin_password', 'admin123');
+function saveDb(db) {
+  try { fs.writeFileSync(DB_PATH, JSON.stringify(db, null, 2)); } catch {}
 }
-// Modo whitelist: 'on' = só IPs cadastrados passam | 'off' = todos passam
-if (!configGet.get('whitelist_mode')) {
-  configSet.run('whitelist_mode', 'off');
-}
+
+let db = loadDb();
+let logId = db.logs.length > 0 ? Math.max(...db.logs.map(l => l.id)) + 1 : 1;
+
+function getConfig(key) { return db.config[key]; }
+function setConfig(key, value) { db.config[key] = value; saveDb(db); }
 
 // ─── Helpers de IP ────────────────────────────────────────────────────────────
 function getClientIp(req) {
@@ -74,13 +63,21 @@ const ALWAYS_ALLOWED = ['127.0.0.1', '::1', '::ffff:127.0.0.1'];
 
 function isAllowed(ip) {
   if (ALWAYS_ALLOWED.includes(ip)) return true;
-  const mode = getConfig('whitelist_mode', 'off');
-  if (mode === 'off') return true;
-  return !!db.prepare('SELECT ip FROM whitelist WHERE ip = ?').get(ip);
+  if (getConfig('whitelist_mode') === 'off') return true;
+  return !!db.whitelist[ip];
 }
 
 function logAccess(ip, action, detail = '') {
-  db.prepare('INSERT INTO access_log (ip, action, detail) VALUES (?, ?, ?)').run(ip, action, detail);
+  const entry = {
+    id: logId++,
+    ip,
+    action,
+    detail,
+    created_at: new Date().toLocaleString('pt-BR')
+  };
+  db.logs.unshift(entry);
+  if (db.logs.length > 200) db.logs = db.logs.slice(0, 200);
+  saveDb(db);
 }
 
 // ─── Middleware de proteção por IP ────────────────────────────────────────────
@@ -107,132 +104,110 @@ app.get('/api/create-room', (req, res) => {
   res.json({ roomId: uuidv4().substring(0, 8) });
 });
 
-// Retorna o IP de quem está acessando
 app.get('/api/myip', (req, res) => {
   const ip = getClientIp(req);
   res.json({ ip, allowed: isAllowed(ip) });
 });
 
-// ─── Admin: autenticação ──────────────────────────────────────────────────────
+// ─── Admin auth ───────────────────────────────────────────────────────────────
 function adminAuth(req, res, next) {
   const token = req.headers['x-admin-token'] || req.query.token;
-  const pwd   = getConfig('admin_password', 'admin123');
-  if (token === pwd) return next();
+  if (token === getConfig('admin_password')) return next();
   return res.status(401).json({ error: 'Senha incorreta' });
 }
 
-// Página do admin (acessível por qualquer IP)
 app.get('/admin', (req, res) =>
   res.sendFile(path.join(__dirname, 'public', 'admin.html')));
 
-// Login
 app.post('/api/admin/login', (req, res) => {
   const { password } = req.body;
-  const pwd = getConfig('admin_password', 'admin123');
-  if (password === pwd) {
-    const ip = getClientIp(req);
-    logAccess(ip, 'ADMIN_LOGIN', 'Login bem-sucedido');
-    res.json({ ok: true, token: pwd });
+  if (password === getConfig('admin_password')) {
+    logAccess(getClientIp(req), 'ADMIN_LOGIN', 'Login bem-sucedido');
+    res.json({ ok: true, token: password });
   } else {
     res.status(401).json({ error: 'Senha incorreta' });
   }
 });
 
 // ─── Admin: whitelist ─────────────────────────────────────────────────────────
-// Listar todos os IPs
 app.get('/api/admin/ips', adminAuth, (req, res) => {
-  const ips = db.prepare('SELECT * FROM whitelist ORDER BY added_at DESC').all();
-  const mode = getConfig('whitelist_mode', 'off');
-  res.json({ ips, mode, total: ips.length });
+  const ips = Object.values(db.whitelist).sort((a, b) =>
+    new Date(b.added_at) - new Date(a.added_at));
+  res.json({ ips, mode: getConfig('whitelist_mode'), total: ips.length });
 });
 
-// Adicionar IP
 app.post('/api/admin/ips', adminAuth, (req, res) => {
   let { ip, label } = req.body;
   ip    = (ip    || '').trim();
   label = (label || '').trim().substring(0, 60);
-
   if (!ip) return res.status(400).json({ error: 'IP é obrigatório' });
 
   const ipv4 = /^(\d{1,3}\.){3}\d{1,3}$/;
   const ipv6 = /^[0-9a-fA-F:]{2,45}$/;
-  if (!ipv4.test(ip) && !ipv6.test(ip)) {
+  if (!ipv4.test(ip) && !ipv6.test(ip))
     return res.status(400).json({ error: 'Formato de IP inválido' });
-  }
 
-  db.prepare('INSERT OR REPLACE INTO whitelist (ip, label) VALUES (?, ?)').run(ip, label || ip);
+  db.whitelist[ip] = { ip, label: label || ip, added_at: new Date().toLocaleString('pt-BR') };
+  saveDb(db);
   logAccess(ip, 'IP_ADDED', label || '');
-  console.log(`[✅ Admin] IP liberado: ${ip} — ${label}`);
   res.json({ ok: true });
 });
 
-// Remover IP
 app.delete('/api/admin/ips/:ip', adminAuth, (req, res) => {
   const ip = decodeURIComponent(req.params.ip);
-  const row = db.prepare('SELECT ip FROM whitelist WHERE ip = ?').get(ip);
-  if (!row) return res.status(404).json({ error: 'IP não encontrado' });
-  db.prepare('DELETE FROM whitelist WHERE ip = ?').run(ip);
+  if (!db.whitelist[ip]) return res.status(404).json({ error: 'IP não encontrado' });
+  delete db.whitelist[ip];
+  saveDb(db);
   logAccess(ip, 'IP_REMOVED', '');
-  console.log(`[🗑 Admin] IP removido: ${ip}`);
   res.json({ ok: true });
 });
 
-// Limpar toda a lista
 app.delete('/api/admin/ips', adminAuth, (req, res) => {
-  db.prepare('DELETE FROM whitelist').run();
-  console.log('[🗑 Admin] Whitelist limpa');
+  db.whitelist = {};
+  saveDb(db);
   res.json({ ok: true });
 });
 
-// Ligar/desligar modo whitelist
 app.post('/api/admin/mode', adminAuth, (req, res) => {
-  const { mode } = req.body; // 'on' ou 'off'
+  const { mode } = req.body;
   if (mode !== 'on' && mode !== 'off') return res.status(400).json({ error: 'mode deve ser "on" ou "off"' });
-  configSet.run('whitelist_mode', mode);
-  console.log(`[⚙️ Admin] Modo whitelist: ${mode}`);
+  setConfig('whitelist_mode', mode);
   res.json({ ok: true, mode });
 });
 
-// Trocar senha do admin
 app.post('/api/admin/password', adminAuth, (req, res) => {
   const { newPassword } = req.body;
-  if (!newPassword || newPassword.length < 4) {
+  if (!newPassword || newPassword.length < 4)
     return res.status(400).json({ error: 'Senha deve ter ao menos 4 caracteres' });
-  }
-  configSet.run('admin_password', newPassword);
-  console.log('[🔑 Admin] Senha alterada');
+  setConfig('admin_password', newPassword);
   res.json({ ok: true });
 });
 
-// ─── Admin: salas online ──────────────────────────────────────────────────────
+// ─── Admin: salas e logs ──────────────────────────────────────────────────────
 app.get('/api/admin/rooms', adminAuth, (req, res) => {
   const data = [];
   rooms.forEach((users, roomId) => {
     data.push({
       roomId,
       users: Array.from(users.values()).map(u => ({
-        name: u.name,
-        ip: u.ip,
-        isSharing: u.isSharing
+        name: u.name, ip: u.ip, isSharing: u.isSharing
       }))
     });
   });
   res.json({ rooms: data, totalUsers: io.sockets.sockets.size });
 });
 
-// ─── Admin: log de acesso ─────────────────────────────────────────────────────
 app.get('/api/admin/logs', adminAuth, (req, res) => {
-  const logs = db.prepare('SELECT * FROM access_log ORDER BY id DESC LIMIT 100').all();
-  res.json({ logs });
+  res.json({ logs: db.logs.slice(0, 100) });
 });
 
-// Limpar logs
 app.delete('/api/admin/logs', adminAuth, (req, res) => {
-  db.prepare('DELETE FROM access_log').run();
+  db.logs = [];
+  saveDb(db);
   res.json({ ok: true });
 });
 
-// ─── Gerenciamento de salas (memória) ─────────────────────────────────────────
+// ─── Salas em memória ─────────────────────────────────────────────────────────
 const rooms = new Map();
 
 function getRoomUsers(roomId) {
@@ -250,7 +225,6 @@ io.use((socket, next) => {
 
 io.on('connection', (socket) => {
   const clientIp = getSocketIp(socket);
-  console.log(`[+] ${socket.id} | IP: ${clientIp}`);
 
   socket.on('join-room', ({ roomId, userName }) => {
     const name = (userName || 'Anônimo').substring(0, 24);
@@ -260,7 +234,6 @@ io.on('connection', (socket) => {
     rooms.get(roomId).set(socket.id, { id: socket.id, name, ip: clientIp, isSharing: false });
 
     logAccess(clientIp, 'JOIN_ROOM', `${name} → ${roomId}`);
-    console.log(`[→] ${name} (${clientIp}) → sala ${roomId}`);
 
     socket.to(roomId).emit('user-joined', {
       userId: socket.id, userName: name, users: getRoomUsers(roomId)
@@ -315,7 +288,6 @@ io.on('connection', (socket) => {
       if (room.size === 0) rooms.delete(roomId);
     }
     socket.to(roomId).emit('user-left', { userId: socket.id, userName, users: getRoomUsers(roomId) });
-    console.log(`[-] ${userName} (${ip}) saiu`);
   });
 });
 
@@ -324,6 +296,5 @@ const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`\n🚀  App:    http://localhost:${PORT}`);
   console.log(`🔐  Admin:  http://localhost:${PORT}/admin`);
-  console.log(`📦  Banco:  telas.db`);
-  console.log(`🔑  Senha:  admin123  (mude pelo painel)\n`);
+  console.log(`🔑  Senha:  ${getConfig('admin_password')}\n`);
 });
