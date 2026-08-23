@@ -16,7 +16,7 @@
   <aside class="sidebar">
 
     <div class="sidebar-top">
-      <div class="server-logo">A</div>
+      <img src="/images/logo.png" alt="Logo" style="width:34px;height:34px;border-radius:10px;object-fit:cover;flex-shrink:0;" />
       <span class="server-name">AkvionGG</span>
     </div>
 
@@ -259,6 +259,24 @@
 
 <input type="hidden" id="shareLinkInput" />
 <div class="toast" id="toast"></div>
+
+<!-- Banner atualização Electron -->
+<div id="updateBanner" style="display:none;position:fixed;bottom:24px;right:24px;background:#5865f2;color:#fff;padding:12px 20px;border-radius:14px;font-family:Inter,sans-serif;font-size:13px;font-weight:600;box-shadow:0 4px 20px rgba(0,0,0,.5);z-index:9999;cursor:pointer">
+  ✨ Atualização disponível — clique para instalar
+</div>
+<script>
+  if (window.electronApp) {
+    window.electronApp.onUpdateAvailable(() => {
+      document.getElementById('updateBanner').style.display = 'block';
+    });
+    window.electronApp.onUpdateDownloaded(() => {
+      const b = document.getElementById('updateBanner');
+      b.textContent = '🚀 Pronto para instalar — clique para reiniciar';
+      b.style.display = 'block';
+      b.onclick = () => window.electronApp.installUpdate();
+    });
+  }
+</script>
 
 <script src="/socket.io/socket.io.js"></script>
 <script src="/js/room.js"></script>
