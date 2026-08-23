@@ -126,7 +126,8 @@ function renderParticipants(users) {
 
   const others = users.filter(u => u.id !== socket.id);
   if (emptyState) emptyState.classList.toggle('hidden', others.length > 0);
-
+  // Mostra meu card só quando há outros na sala
+  if (myVideoTile) myVideoTile.classList.toggle('hidden', others.length === 0);
   updateGridClass();
 }
 
@@ -388,6 +389,7 @@ function initSocket() {
     if (shareLinkDisplay) shareLinkDisplay.value = link;
 
     showMyOverlay();
+    if (myVideoTile) myVideoTile.classList.add('hidden');
     updateGridClass();
   });
 
