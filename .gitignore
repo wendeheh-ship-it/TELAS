@@ -1,0 +1,5 @@
+node_modules/
+telas-db.json
+telas.db
+*.log
+.env
