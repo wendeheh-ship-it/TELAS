@@ -129,8 +129,11 @@ function renderParticipants(users) {
   });
 
   const others = users.filter(u => u.id !== socket.id);
-  // Esconde meu próprio card quando não há outros usuários
-  if (myVideoTile) myVideoTile.classList.toggle('hidden', others.length === 0);
+  // Card do participante SEMPRE visível
+  if (myVideoTile) myVideoTile.classList.remove('hidden');
+  // Invite-card some quando há outros usuários na sala
+  const inviteCard = document.getElementById('emptyState');
+  if (inviteCard) inviteCard.classList.toggle('hidden', others.length > 0);
 }
 
 // ── Tiles remotos ─────────────────────────────────────────────
@@ -420,8 +423,12 @@ function initSocket() {
     const link = `${location.origin}/room/${roomId}`;
     if (shareLinkInput) shareLinkInput.value = link;
 
-    // Esconde meu card até que outros entrem
-    if (myVideoTile) myVideoTile.classList.add('hidden');
+    // Card do participante sempre visível desde o início
+    if (myVideoTile) myVideoTile.classList.remove('hidden');
+
+    // Preenche o campo de link do invite-card
+    const linkDisplay = document.getElementById('shareLinkDisplay');
+    if (linkDisplay) linkDisplay.value = `${location.origin}/room/${roomId}`;
 
     showMyOverlay();
   });
@@ -499,6 +506,7 @@ btnLeave?.addEventListener('click', leaveRoom);
 const roomLink = `${location.origin}/room/${roomId}`;
 btnCopyLink?.addEventListener('click', () => copyText(roomLink));
 btnCopyLinkMain?.addEventListener('click', () => copyText(roomLink));
+document.getElementById('btnCopyLinkMain')?.addEventListener('click', () => copyText(roomLink));
 
 // ── Init ──────────────────────────────────────────────────────
 async function init() {

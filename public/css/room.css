@@ -542,3 +542,54 @@ input  { font-family: var(--font); }
   .controls-center { gap: 3px; }
   .ctrl-divider { display: none; }
 }
+
+/* INVITE CARD - "Sala pronta" */
+.invite-card {
+  width: min(480px, 100%);
+  max-width: 480px;
+  box-sizing: border-box;
+  background: var(--bg-card);
+  border: 1px solid var(--border-md);
+  border-radius: var(--r-lg);
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  box-shadow: var(--shadow-sm);
+}
+.invite-card.hidden { display: none; }
+
+.invite-icon { color: var(--text-3); opacity: .6; }
+
+.invite-body { text-align: center; }
+.invite-title {
+  font-size: 15px; font-weight: 700; color: var(--text-1);
+  margin-bottom: 3px;
+}
+.invite-sub { font-size: 13px; color: var(--text-3); }
+
+.invite-link-row {
+  display: flex; gap: 8px; width: 100%;
+}
+.invite-link-input {
+  flex: 1; min-width: 0;
+  background: var(--bg-input);
+  border: 1px solid var(--border-md);
+  border-radius: var(--r-sm);
+  color: var(--text-2);
+  font-size: 13px; padding: 9px 12px;
+}
+.invite-link-input:focus { outline: none; border-color: var(--accent); }
+
+.invite-copy-btn {
+  background: var(--accent);
+  color: #fff;
+  border-radius: var(--r-sm);
+  padding: 9px 18px;
+  font-size: 13px; font-weight: 600;
+  white-space: nowrap; flex-shrink: 0;
+  transition: background var(--ease), transform .1s;
+}
+.invite-copy-btn:hover { background: var(--accent-h); transform: translateY(-1px); }
+.invite-copy-btn:active { transform: translateY(0); }
