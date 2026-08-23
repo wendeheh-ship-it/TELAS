@@ -125,58 +125,65 @@
     <!-- ── Área de chamada ── -->
     <div class="call-area" id="callArea">
 
-      <!-- Grade de participantes (vídeo/avatar) -->
-      <div class="participants-grid" id="videoGrid">
-
-        <!-- Tela compartilhada -->
-        <div class="screen-tile hidden" id="screenTile">
-          <video id="screenVideo" autoplay playsinline></video>
-          <div class="tile-label" id="screenLabel">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-              <rect x="2" y="3" width="20" height="14" rx="2" stroke="currentColor" stroke-width="1.5"/>
-            </svg>
-            Tela de —
-          </div>
-        </div>
-
-        <!-- Minha câmera -->
-        <div class="participant-card" id="myVideoTile">
-          <video id="myVideo" autoplay muted playsinline class="card-video"></video>
-          <div class="card-overlay hidden" id="myNoCamOverlay">
-            <div class="card-avatar" id="myCardAvatar">?</div>
-            <div class="speaking-ring" id="myRing"></div>
-          </div>
-          <div class="card-footer">
-            <span class="card-name" id="myVideoLabel">Você</span>
-            <span class="card-muted hidden" id="myMutedIcon">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-                <line x1="1" y1="1" x2="23" y2="23" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                <path d="M9 9v3a3 3 0 005.12 2.12M15 9.34V5a3 3 0 00-5.94-.6" stroke="currentColor" stroke-width="2"/>
-                <path d="M17 16.95A7 7 0 015 12v-2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-              </svg>
-            </span>
-          </div>
-        </div>
-
-      </div>
-
-      <!-- Estado vazio -->
-      <div class="empty-call" id="emptyState">
-        <div class="empty-icon">
-          <svg width="56" height="56" viewBox="0 0 24 24" fill="none">
-            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
-            <path d="M15.54 8.46a5 5 0 010 7.07M19.07 4.93a10 10 0 010 14.14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+      <!-- Modo tela compartilhada: grid lateral -->
+      <div class="screen-tile hidden" id="screenTile">
+        <video id="screenVideo" autoplay playsinline></video>
+        <div class="tile-label" id="screenLabel">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+            <rect x="2" y="3" width="20" height="14" rx="2" stroke="currentColor" stroke-width="1.5"/>
           </svg>
-        </div>
-        <p class="empty-title">Sala pronta</p>
-        <p class="empty-sub">Compartilhe o link para seus amigos entrarem</p>
-        <div class="empty-link-row">
-          <input class="empty-link-input" type="text" id="shareLinkInput" readonly />
-          <button class="empty-copy-btn" id="btnCopyLinkMain">Copiar</button>
+          Tela de —
         </div>
       </div>
 
-    </div>
+      <!-- Conteúdo centralizado da chamada -->
+      <div class="call-content" id="callContent">
+
+        <!-- Grade de cards de participantes -->
+        <div class="participants-grid" id="videoGrid">
+
+          <!-- Minha câmera -->
+          <div class="participant-card" id="myVideoTile">
+            <video id="myVideo" autoplay muted playsinline class="card-video"></video>
+            <div class="card-overlay hidden" id="myNoCamOverlay">
+              <div class="card-avatar" id="myCardAvatar">?</div>
+              <div class="speaking-ring" id="myRing"></div>
+            </div>
+            <div class="card-footer">
+              <span class="card-name" id="myVideoLabel">Você</span>
+              <span class="card-muted hidden" id="myMutedIcon">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                  <line x1="1" y1="1" x2="23" y2="23" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  <path d="M9 9v3a3 3 0 005.12 2.12M15 9.34V5a3 3 0 00-5.94-.6" stroke="currentColor" stroke-width="2"/>
+                  <path d="M17 16.95A7 7 0 015 12v-2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+              </span>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Convite — separado, abaixo dos cards, nunca sobreposto -->
+        <div class="invite-card" id="emptyState">
+          <div class="invite-icon">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+              <path d="M15.54 8.46a5 5 0 010 7.07M19.07 4.93a10 10 0 010 14.14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <div class="invite-text">
+            <p class="invite-title">Sala pronta</p>
+            <p class="invite-sub">Compartilhe o link com seus amigos</p>
+          </div>
+          <div class="invite-link-row">
+            <input class="invite-link-input" type="text" id="shareLinkInput" readonly />
+            <button class="invite-copy-btn" id="btnCopyLinkMain">Copiar</button>
+          </div>
+        </div>
+
+      </div><!-- /call-content -->
+
+    </div><!-- /call-area -->
 
     <!-- ── Barra de controles ── -->
     <div class="controls-bar">

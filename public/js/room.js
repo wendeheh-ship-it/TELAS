@@ -129,7 +129,8 @@ function renderParticipants(users) {
   });
 
   const others = users.filter(u => u.id !== socket.id);
-  emptyState.classList.toggle('hidden', others.length > 0);
+  // invite-card fica visível só quando não há outros usuários
+  if (emptyState) emptyState.classList.toggle('hidden', others.length > 0);
 }
 
 // ── Tiles remotos ─────────────────────────────────────────────
@@ -190,7 +191,8 @@ function setRemoteStream(userId, stream) {
 // ── Tela compartilhada ────────────────────────────────────────
 function showScreen(userId, uName) {
   screenTile.classList.remove('hidden');
-  videoGrid.classList.add('has-screen');
+  // Ativa layout lado a lado via call-area
+  document.querySelector('.call-area').classList.add('has-screen');
   screenLabel.innerHTML = `
     <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
       <rect x="2" y="3" width="20" height="14" rx="2" stroke="currentColor" stroke-width="1.5"/>
@@ -199,7 +201,7 @@ function showScreen(userId, uName) {
 
 function hideScreen() {
   screenTile.classList.add('hidden');
-  videoGrid.classList.remove('has-screen');
+  document.querySelector('.call-area').classList.remove('has-screen');
   screenVideo.srcObject = null;
 }
 
