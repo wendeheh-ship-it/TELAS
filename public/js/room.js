@@ -7,7 +7,6 @@ const ICE_SERVERS = {
   ]
 };
 
-// ── Estado ────────────────────────────────────────
 const roomId   = window.location.pathname.split('/room/')[1];
 const userName = localStorage.getItem('telas_username') || 'Anônimo';
 
@@ -21,33 +20,46 @@ let camEnabled   = true;
 const peers        = new Map();
 const remoteStreams = new Map();
 
-// ── DOM ───────────────────────────────────────────
 const $ = id => document.getElementById(id);
 
+// DOM
 const myVideo         = $('myVideo');
 const myVideoTile     = $('myVideoTile');
 const myVideoLabel    = $('myVideoLabel');
 const myNoCamOverlay  = $('myNoCamOverlay');
 const myCardAvatar    = $('myCardAvatar');
 const myRing          = $('myRing');
+const myMutedIcon     = $('myMutedIcon');
 const screenVideo     = $('screenVideo');
 const screenTile      = $('screenTile');
 const screenLabel     = $('screenLabel');
 const videoGrid       = $('videoGrid');
+const emptyState      = $('emptyState');
 
-const ctrlMic         = $('ctrlMic');
-const ctrlCam         = $('ctrlCam');
-const btnShareScreen  = $('btnShareScreen');
-const ctrlLeave       = $('ctrlLeave');
-const btnLeave        = $('btnLeave');
-const btnCopyLink     = $('btnCopyLink');
-const btnToggleMic    = $('btnToggleMic');  // legado oculto
-const btnToggleCam    = $('btnToggleCam');  // legado oculto
+// Controles pill bar
+const ctrlMic        = $('ctrlMic');
+const ctrlCam        = $('ctrlCam');
+const btnShareScreen = $('btnShareScreen');
+const ctrlLeave      = $('ctrlLeave');
 
-const topbarBadge     = $('topbarBadge');
-const topbarPeople    = $('topbarPeople');
-const shareLinkInput  = $('shareLinkInput');
-const toastEl         = $('toast');
+// Sidebar
+const btnToggleMic   = $('btnToggleMic');
+const btnToggleCam   = $('btnToggleCam');
+const btnLeave       = $('btnLeave');
+const btnCopyLink    = $('btnCopyLink');
+const btnCopyLinkMain = $('btnCopyLinkMain');
+
+// Info
+const myAvatarSidebar  = $('myAvatarSidebar');
+const myNameSidebar    = $('myNameSidebar');
+const participantsList = $('participantsList');
+const userCount        = $('userCount');
+const channelBadge     = $('channelBadge');
+const headerRoomName   = $('headerRoomName');
+const voiceStatusRoom  = $('voiceStatusRoom');
+const shareLinkInput   = $('shareLinkInput');
+const shareLinkDisplay = $('shareLinkDisplay');
+const toastEl          = $('toast');
 
 // ── Utils ─────────────────────────────────────────
 function toast(msg, type = 'info') {
@@ -78,28 +90,32 @@ function copyText(text) {
     .catch(() => toast('Erro ao copiar', 'error'));
 }
 
-// ── Grid: atualiza classe de layout ───────────────
-function updateGridClass() {
-  const cards = videoGrid.querySelectorAll('.participant-card:not(.hidden)');
-  const n = cards.length;
-  videoGrid.className = 'participants-grid';
-  if (n === 1) videoGrid.classList.add('p1');
-  else if (n === 2) videoGrid.classList.add('p2');
-  else if (n === 3) videoGrid.classList.add('p3');
-  else if (n === 4) videoGrid.classList.add('p4');
-  else videoGrid.classList.add('p-many');
-}
-
-// ── Atualiza badge do topo ────────────────────────
-function updateTopbar(users) {
-  const n = users.length;
-  topbarPeople.textContent = n === 1 ? '1 pessoa' : `${n} pessoas`;
-}
-
 // ── Participantes ─────────────────────────────────
 function renderParticipants(users) {
-  updateTopbar(users);
-  updateGridClass();
+  participantsList.innerHTML = '';
+  const n = users.length;
+  if (userCount)    userCount.textContent = n;
+  if (channelBadge) channelBadge.textContent = n;
+
+  const sorted = [...users].sort((a, b) =>
+    a.id === socket.id ? -1 : b.id === socket.id ? 1 : 0);
+
+  sorted.forEach(u => {
+    const isMe = u.id === socket.id;
+    const div  = document.createElement('div');
+    div.className = `sidebar-user${isMe ? ' me' : ''}`;
+    div.dataset.userId = u.id;
+    const color = avatarColor(u.id);
+    div.innerHTML = `
+      <div class="sidebar-user-avatar" style="background:${color}">${initial(u.name)}</div>
+      <span class="sidebar-user-name">${esc(u.name)}${isMe ? ' (você)' : ''}</span>
+      <div class="sidebar-user-icons ${!micEnabled && isMe ? 'muted' : ''}"></div>
+    `;
+    participantsList.appendChild(div);
+  });
+
+  const others = users.filter(u => u.id !== socket.id);
+  if (emptyState) emptyState.classList.toggle('hidden', others.length > 0);
 }
 
 // ── Tiles remotos ─────────────────────────────────
@@ -110,13 +126,10 @@ function createRemoteTile(userId, uName) {
   card.className = 'participant-card';
   card.id = `tile-${userId}`;
 
-  // Vídeo
   const video = document.createElement('video');
   video.autoplay = true; video.playsinline = true;
-  video.className = 'card-video';
-  video.id = `video-${userId}`;
+  video.className = 'card-video'; video.id = `video-${userId}`;
 
-  // Overlay sem câmera
   const overlay = document.createElement('div');
   overlay.className = 'card-cam-off';
   overlay.id = `overlay-${userId}`;
@@ -126,32 +139,27 @@ function createRemoteTile(userId, uName) {
     <div class="speaking-ring" id="ring-${userId}"></div>
   `;
 
-  // Ícone mudo
-  const mutedIcon = document.createElement('div');
-  mutedIcon.className = 'card-muted-icon hidden';
-  mutedIcon.id = `muted-${userId}`;
-  mutedIcon.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+  const mutedEl = document.createElement('div');
+  mutedEl.className = 'card-muted-icon hidden';
+  mutedEl.id = `muted-${userId}`;
+  mutedEl.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none">
     <line x1="1" y1="1" x2="23" y2="23" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
     <path d="M9 9v3a3 3 0 005.12 2.12" stroke="currentColor" stroke-width="2"/>
   </svg>`;
 
-  // Nome
   const nameTag = document.createElement('div');
-  nameTag.className = 'card-name-tag';
-  nameTag.id = `name-${userId}`;
+  nameTag.className = 'card-name-tag'; nameTag.id = `name-${userId}`;
   nameTag.textContent = uName;
 
   card.appendChild(video);
   card.appendChild(overlay);
-  card.appendChild(mutedIcon);
+  card.appendChild(mutedEl);
   card.appendChild(nameTag);
   videoGrid.appendChild(card);
-  updateGridClass();
 }
 
 function removeRemoteTile(userId) {
   $(`tile-${userId}`)?.remove();
-  updateGridClass();
 }
 
 function setRemoteStream(userId, stream) {
@@ -163,12 +171,11 @@ function setRemoteStream(userId, stream) {
   if (overlay) overlay.className = `card-cam-off${hasVid ? ' hidden' : ''}`;
 }
 
-// ── Tela compartilhada ────────────────────────────
+// ── Screen share ──────────────────────────────────
 function showScreen(userId, uName) {
   screenTile.classList.remove('hidden');
-  screenLabel.textContent = `Tela de ${uName}`;
+  if (screenLabel) screenLabel.textContent = `Tela de ${uName}`;
 }
-
 function hideScreen() {
   screenTile.classList.add('hidden');
   screenVideo.srcObject = null;
@@ -206,7 +213,6 @@ function toggleMic() {
   localStream?.getAudioTracks().forEach(t => { t.enabled = micEnabled; });
   updateMicUI();
 }
-
 function toggleCam() {
   camEnabled = !camEnabled;
   localStream?.getVideoTracks().forEach(t => { t.enabled = camEnabled; });
@@ -217,12 +223,12 @@ function toggleCam() {
 
 function updateMicUI() {
   ctrlMic?.classList.toggle('muted', !micEnabled);
-  const mutedEl = $('myMutedIcon');
-  mutedEl?.classList.toggle('hidden', micEnabled);
+  btnToggleMic?.classList.toggle('muted', !micEnabled);
+  myMutedIcon?.classList.toggle('hidden', micEnabled);
 }
-
 function updateCamUI() {
   ctrlCam?.classList.toggle('muted', !camEnabled);
+  btnToggleCam?.classList.toggle('muted', !camEnabled);
 }
 
 // ── Screen share ──────────────────────────────────
@@ -234,14 +240,11 @@ async function startShare() {
     screenVideo.srcObject = screenStream;
     showScreen(socket.id, userName);
     screenStream.getTracks().forEach(track => {
-      peers.forEach((pc, uid) => {
-        pc.addTrack(track, screenStream);
-        renegotiate(uid);
-      });
+      peers.forEach((pc, uid) => { pc.addTrack(track, screenStream); renegotiate(uid); });
     });
     screenStream.getVideoTracks()[0].onended = stopShare;
     isSharing = true;
-    btnShareScreen.classList.add('sharing');
+    btnShareScreen?.classList.add('sharing');
     socket.emit('screen-share-started', { roomId });
     toast('Compartilhando tela', 'success');
   } catch (e) {
@@ -252,15 +255,11 @@ async function startShare() {
 function stopShare() {
   screenStream?.getTracks().forEach(t => {
     t.stop();
-    peers.forEach(pc => {
-      pc.getSenders().filter(s => s.track === t).forEach(s => pc.removeTrack(s));
-    });
+    peers.forEach(pc => { pc.getSenders().filter(s => s.track === t).forEach(s => pc.removeTrack(s)); });
   });
   peers.forEach((_, uid) => renegotiate(uid));
-  screenStream = null;
-  hideScreen();
-  isSharing = false;
-  btnShareScreen.classList.remove('sharing');
+  screenStream = null; hideScreen(); isSharing = false;
+  btnShareScreen?.classList.remove('sharing');
   socket.emit('screen-share-stopped', { roomId });
   toast('Compartilhamento encerrado', 'info');
 }
@@ -272,22 +271,13 @@ function getPeer(userId) {
   peers.set(userId, pc);
   localStream?.getTracks().forEach(t => pc.addTrack(t, localStream));
   if (screenStream) screenStream.getTracks().forEach(t => pc.addTrack(t, screenStream));
-  pc.onicecandidate = e => {
-    if (e.candidate) socket.emit('ice-candidate', { targetId: userId, candidate: e.candidate });
-  };
+  pc.onicecandidate = e => { if (e.candidate) socket.emit('ice-candidate', { targetId: userId, candidate: e.candidate }); };
   pc.ontrack = e => {
-    const stream = e.streams[0];
-    if (!stream) return;
+    const stream = e.streams[0]; if (!stream) return;
     remoteStreams.set(userId, stream);
-    const isScreen = stream.getVideoTracks().some(t =>
-      /screen|display|monitor|window|entire/i.test(t.label));
-    if (isScreen) {
-      screenVideo.srcObject = stream;
-      const uName = getRemoteName(userId);
-      showScreen(userId, uName);
-    } else {
-      setRemoteStream(userId, stream);
-    }
+    const isScreen = stream.getVideoTracks().some(t => /screen|display|monitor|window|entire/i.test(t.label));
+    if (isScreen) { screenVideo.srcObject = stream; showScreen(userId, getRemoteName(userId)); }
+    else setRemoteStream(userId, stream);
   };
   pc.onconnectionstatechange = () => {
     if (['failed','disconnected'].includes(pc.connectionState)) dropPeer(userId);
@@ -325,8 +315,7 @@ async function handleIce(fromId, candidate) {
 }
 
 async function renegotiate(userId) {
-  const pc = peers.get(userId);
-  if (!pc) return;
+  const pc = peers.get(userId); if (!pc) return;
   const offer = await pc.createOffer();
   await pc.setLocalDescription(offer);
   socket.emit('offer', { targetId: userId, offer: pc.localDescription });
@@ -342,23 +331,24 @@ function initSocket() {
 
   socket.on('connect', () => {
     socket.emit('join-room', { roomId, userName });
+
+    if (myVideoLabel)   myVideoLabel.textContent   = userName;
+    if (myNameSidebar)  myNameSidebar.textContent  = userName;
+    if (myAvatarSidebar){ myAvatarSidebar.textContent = initial(userName); myAvatarSidebar.style.background = avatarColor(socket.id); }
+    if (headerRoomName) headerRoomName.textContent = `geral`;
+    if (voiceStatusRoom) voiceStatusRoom.textContent = `sala #${roomId}`;
     document.title = `TELAS — #${roomId}`;
+
     const link = `${location.origin}/room/${roomId}`;
-    if (shareLinkInput) shareLinkInput.value = link;
-    // Define avatar do meu card
+    if (shareLinkInput)   shareLinkInput.value   = link;
+    if (shareLinkDisplay) shareLinkDisplay.value = link;
+
     showMyOverlay();
-    myVideoLabel.textContent = userName;
-    updateGridClass();
   });
 
   socket.on('room-users', ({ users }) => {
     renderParticipants(users);
-    users.forEach(u => {
-      if (u.id !== socket.id) {
-        createRemoteTile(u.id, u.name);
-        callUser(u.id);
-      }
-    });
+    users.forEach(u => { if (u.id !== socket.id) { createRemoteTile(u.id, u.name); callUser(u.id); } });
   });
 
   socket.on('user-joined', ({ userId, userName: uName, users }) => {
@@ -368,25 +358,18 @@ function initSocket() {
   });
 
   socket.on('user-left', ({ userId, userName: uName, users }) => {
-    dropPeer(userId);
-    removeRemoteTile(userId);
-    renderParticipants(users);
+    dropPeer(userId); removeRemoteTile(userId); renderParticipants(users);
     if (remoteStreams.get(userId) === screenVideo.srcObject) hideScreen();
     toast(`${uName} saiu`, 'info');
   });
 
-  socket.on('offer',         ({ fromId, offer })      => handleOffer(fromId, offer));
-  socket.on('answer',        ({ fromId, answer })      => handleAnswer(fromId, answer));
-  socket.on('ice-candidate', ({ fromId, candidate })   => handleIce(fromId, candidate));
+  socket.on('offer',         ({ fromId, offer })    => handleOffer(fromId, offer));
+  socket.on('answer',        ({ fromId, answer })   => handleAnswer(fromId, answer));
+  socket.on('ice-candidate', ({ fromId, candidate })=> handleIce(fromId, candidate));
 
-  socket.on('screen-share-started', ({ userId, userName: uName }) => {
-    toast(`${uName} está compartilhando a tela`, 'info');
-  });
+  socket.on('screen-share-started', ({ userId, userName: uName }) => toast(`${uName} está compartilhando a tela`, 'info'));
   socket.on('screen-share-stopped', () => hideScreen());
-
-  // Chat — mantido no socket mas sem UI
   socket.on('chat-message', () => {});
-
   socket.on('disconnect', () => toast('Conexão perdida…', 'error'));
   socket.on('reconnect',  () => { toast('Reconectado!', 'success'); socket.emit('join-room', { roomId, userName }); });
 }
@@ -394,10 +377,10 @@ function initSocket() {
 // ── Event listeners ───────────────────────────────
 btnShareScreen?.addEventListener('click', () => isSharing ? stopShare() : startShare());
 
-ctrlMic?.addEventListener('click', toggleMic);
+ctrlMic?.addEventListener('click',    toggleMic);
 btnToggleMic?.addEventListener('click', toggleMic);
 
-ctrlCam?.addEventListener('click', toggleCam);
+ctrlCam?.addEventListener('click',    toggleCam);
 btnToggleCam?.addEventListener('click', toggleCam);
 
 function leaveRoom() {
@@ -409,10 +392,11 @@ function leaveRoom() {
   location.href = '/';
 }
 ctrlLeave?.addEventListener('click', leaveRoom);
-btnLeave?.addEventListener('click', leaveRoom);
+btnLeave?.addEventListener('click',  leaveRoom);
 
 const roomLink = `${location.origin}/room/${roomId}`;
-btnCopyLink?.addEventListener('click', () => copyText(roomLink));
+btnCopyLink?.addEventListener('click',     () => copyText(roomLink));
+btnCopyLinkMain?.addEventListener('click', () => copyText(roomLink));
 
 // ── Init ──────────────────────────────────────────
 async function init() {

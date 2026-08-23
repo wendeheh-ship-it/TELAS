@@ -12,102 +12,190 @@
 
 <div class="app">
 
-  <!-- BARRA SUPERIOR -->
-  <header class="topbar">
-    <div class="topbar-left">
-      <div class="topbar-icon">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor"/>
-          <path d="M15.54 8.46a5 5 0 010 7.07M19.07 4.93a10 10 0 010 14.14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+  <!-- ════ SIDEBAR ════ -->
+  <aside class="sidebar">
+
+    <div class="sidebar-top">
+      <div class="server-logo">A</div>
+      <span class="server-name">AkvionGG</span>
+    </div>
+
+    <div class="sidebar-section-label">CANAIS DE VOZ</div>
+    <div class="channel-list">
+      <div class="channel-item active" id="channelItem">
+        <svg class="channel-icon" width="16" height="16" viewBox="0 0 24 24" fill="none">
+          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+          <path d="M15.54 8.46a5 5 0 010 7.07" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          <path d="M19.07 4.93a10 10 0 010 14.14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
         </svg>
-      </div>
-      <span class="topbar-server">AkvionGG</span>
-      <span class="topbar-sep">/</span>
-      <span class="topbar-channel">geral</span>
-      <div class="topbar-badge" id="topbarBadge">
-        <div class="badge-dot"></div>
-        <span id="topbarPeople">1 pessoa</span>
+        <span class="channel-name">geral</span>
+        <span class="channel-badge" id="channelBadge">0</span>
       </div>
     </div>
-    <div class="topbar-right">
-      <button class="topbar-btn" id="btnCopyLink" title="Copiar link da sala">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-          <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-          <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+
+    <div class="sidebar-section-label" style="margin-top:8px">
+      PARTICIPANTES — <span id="userCount">0</span>
+    </div>
+    <div class="sidebar-participants" id="participantsList"></div>
+
+    <div style="flex:1"></div>
+
+    <div class="voice-bar">
+      <div class="voice-bar-status">
+        <div class="voice-status-dot"></div>
+        <div class="voice-status-text">
+          <span class="voice-status-title">Voz conectada</span>
+          <span class="voice-status-room" id="voiceStatusRoom">sala —</span>
+        </div>
+        <button class="voice-disconnect-btn" id="btnLeave" title="Sair">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+            <path d="M18.36 6.64a9 9 0 010 10.73" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <path d="M14.12 9.88a4 4 0 010 4.24" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <line x1="2" y1="2" x2="22" y2="22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+      <div class="user-row">
+        <div class="user-avatar-wrap">
+          <div class="user-avatar" id="myAvatarSidebar">?</div>
+          <div class="user-status-dot online"></div>
+        </div>
+        <div class="user-info">
+          <span class="user-name" id="myNameSidebar">—</span>
+          <span class="user-tag">Em voz</span>
+        </div>
+        <div class="user-quick-btns">
+          <button class="quick-btn" id="btnToggleMic" title="Microfone">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+              <path d="M12 1a4 4 0 014 4v7a4 4 0 01-8 0V5a4 4 0 014-4z" stroke="currentColor" stroke-width="2"/>
+              <path d="M19 10v2a7 7 0 01-14 0v-2M12 19v4M8 23h8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </button>
+          <button class="quick-btn" id="btnToggleCam" title="Câmera">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+              <path d="M23 7l-7 5 7 5V7z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <rect x="1" y="5" width="15" height="14" rx="2" stroke="currentColor" stroke-width="2"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </aside>
+
+  <!-- ════ MAIN ════ -->
+  <main class="main">
+
+    <!-- Header -->
+    <header class="main-header">
+      <div class="header-channel">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+          <path d="M15.54 8.46a5 5 0 010 7.07" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        <span id="headerRoomName">geral</span>
+      </div>
+      <div class="header-actions">
+        <button class="header-btn" id="btnCopyLink" title="Copiar link">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+            <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Área de chamada -->
+    <div class="call-area" id="callArea">
+
+      <!-- Tela compartilhada -->
+      <div class="screen-tile hidden" id="screenTile">
+        <video id="screenVideo" autoplay playsinline></video>
+        <div class="tile-label" id="screenLabel">Tela de —</div>
+      </div>
+
+      <!-- Conteúdo central -->
+      <div class="call-content">
+
+        <!-- Grade de participantes -->
+        <div class="participants-grid" id="videoGrid">
+          <div class="participant-card" id="myVideoTile">
+            <video id="myVideo" autoplay muted playsinline class="card-video"></video>
+            <div class="card-cam-off hidden" id="myNoCamOverlay">
+              <div class="card-avatar" id="myCardAvatar">?</div>
+              <div class="speaking-ring" id="myRing"></div>
+            </div>
+            <div class="card-name-tag" id="myVideoLabel">Você</div>
+            <div class="card-muted-icon hidden" id="myMutedIcon">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                <line x1="1" y1="1" x2="23" y2="23" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                <path d="M9 9v3a3 3 0 005.12 2.12" stroke="currentColor" stroke-width="2"/>
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card Sala pronta -->
+        <div class="invite-card" id="emptyState">
+          <div class="invite-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+              <path d="M15.54 8.46a5 5 0 010 7.07M19.07 4.93a10 10 0 010 14.14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <div>
+            <p class="invite-title">Sala pronta</p>
+            <p class="invite-sub">Compartilhe o link com seus amigos</p>
+          </div>
+          <div class="invite-link-row">
+            <input class="invite-link-input" type="text" id="shareLinkDisplay" readonly placeholder="https://..." />
+            <button class="invite-copy-btn" id="btnCopyLinkMain">Copiar</button>
+          </div>
+        </div>
+
+      </div><!-- /call-content -->
+    </div><!-- /call-area -->
+
+    <!-- ════ BARRA FLUTUANTE CÁPSULA ════ -->
+    <div class="pill-bar">
+      <button class="pill-btn" id="ctrlCam" title="Câmera">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+          <path d="M23 7l-7 5 7 5V7z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <rect x="1" y="5" width="15" height="14" rx="2" stroke="currentColor" stroke-width="2"/>
+        </svg>
+      </button>
+      <button class="pill-btn" id="btnShareScreen" title="Tela">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+          <rect x="2" y="3" width="20" height="14" rx="2" stroke="currentColor" stroke-width="2"/>
+          <path d="M8 21h8M12 17v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          <path d="M9 10l3-3 3 3M12 7v6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </button>
+      <button class="pill-btn" id="ctrlMic" title="Microfone">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+          <path d="M12 1a4 4 0 014 4v7a4 4 0 01-8 0V5a4 4 0 014-4z" stroke="currentColor" stroke-width="2"/>
+          <path d="M19 10v2a7 7 0 01-14 0v-2M12 19v4M8 23h8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </button>
+      <button class="pill-btn" id="ctrlSettings" title="Configurações">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/>
+          <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" stroke="currentColor" stroke-width="2"/>
+        </svg>
+      </button>
+      <button class="pill-btn pill-leave" id="ctrlLeave" title="Sair">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+          <path d="M18.36 6.64a9 9 0 010 10.73M14.12 9.88a4 4 0 010 4.24" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          <line x1="2" y1="2" x2="22" y2="22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
         </svg>
       </button>
     </div>
-  </header>
 
-  <!-- ÁREA PRINCIPAL DE PARTICIPANTES -->
-  <main class="stage">
-    <div class="participants-grid" id="videoGrid">
-
-      <!-- Tela compartilhada -->
-      <div class="screen-card hidden" id="screenTile">
-        <video id="screenVideo" autoplay playsinline></video>
-        <div class="card-label" id="screenLabel">Tela de —</div>
-      </div>
-
-      <!-- Meu card -->
-      <div class="participant-card" id="myVideoTile">
-        <video id="myVideo" autoplay muted playsinline class="card-video"></video>
-        <div class="card-cam-off" id="myNoCamOverlay">
-          <div class="card-avatar" id="myCardAvatar">?</div>
-          <div class="speaking-ring" id="myRing"></div>
-        </div>
-        <div class="card-name-tag" id="myVideoLabel">Você</div>
-      </div>
-
-    </div>
-
-    <!-- Inputs ocultos para JS -->
-    <input type="hidden" id="shareLinkInput" />
-    <input type="hidden" id="shareLinkDisplay" />
   </main>
 
-  <!-- BARRA DE CONTROLES FLUTUANTE -->
-  <div class="controls-float">
-    <button class="ctrl" id="ctrlCam" title="Câmera">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-        <path d="M23 7l-7 5 7 5V7z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        <rect x="1" y="5" width="15" height="14" rx="2" stroke="currentColor" stroke-width="2"/>
-      </svg>
-    </button>
-    <button class="ctrl" id="btnShareScreen" title="Compartilhar tela">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-        <rect x="2" y="3" width="20" height="14" rx="2" stroke="currentColor" stroke-width="2"/>
-        <path d="M8 21h8M12 17v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-        <path d="M9 10l3-3 3 3M12 7v6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-      </svg>
-    </button>
-    <button class="ctrl" id="ctrlMic" title="Microfone">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-        <path d="M12 1a4 4 0 014 4v7a4 4 0 01-8 0V5a4 4 0 014-4z" stroke="currentColor" stroke-width="2"/>
-        <path d="M19 10v2a7 7 0 01-14 0v-2M12 19v4M8 23h8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-      </svg>
-    </button>
-    <button class="ctrl" id="btnToggleMic" title="Mic sidebar" style="display:none"></button>
-    <button class="ctrl" id="btnToggleCam" title="Cam sidebar" style="display:none"></button>
-    <button class="ctrl" id="ctrlSettings" title="Configurações">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-        <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/>
-        <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" stroke="currentColor" stroke-width="2"/>
-      </svg>
-    </button>
-    <div class="ctrl-sep"></div>
-    <button class="ctrl ctrl-leave" id="ctrlLeave" title="Sair da chamada">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-        <path d="M18.36 6.64a9 9 0 010 10.73M14.12 9.88a4 4 0 010 4.24" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-        <line x1="2" y1="2" x2="22" y2="22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-      </svg>
-    </button>
-    <!-- Botões legados usados pelo JS -->
-    <button id="btnLeave" style="display:none"></button>
-  </div>
+</div>
 
-</div><!-- /app -->
-
+<input type="hidden" id="shareLinkInput" />
 <div class="toast" id="toast"></div>
 
 <script src="/socket.io/socket.io.js"></script>
