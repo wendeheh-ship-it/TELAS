@@ -255,28 +255,131 @@ function updateCamUI() {
   btnToggleCam?.classList.toggle('muted', !camEnabled);
 }
 
-// ── Screen share ──────────────────────────────────
-async function startShare() {
+// ── Screen share com modais ───────────────────────
+let selectedFps = 30;
+let optimizeScreen = true;
+
+function openModal(id)  { $(id)?.classList.remove('hidden'); }
+function closeModal(id) { $(id)?.classList.add('hidden'); }
+
+function initModals() {
+  // Grupos de opções — resolução
+  document.querySelectorAll('#resolutionGroup .option-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#resolutionGroup .option-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    });
+  });
+
+  // Grupos de opções — fps
+  document.querySelectorAll('#fpsGroup .option-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#fpsGroup .option-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      selectedFps = parseInt(btn.dataset.value);
+    });
+  });
+
+  // Toggle otimizar
+  const toggleEl = $('toggleOptimize');
+  if (toggleEl) {
+    toggleEl.classList.add('on');
+    toggleEl.addEventListener('click', () => {
+      optimizeScreen = !optimizeScreen;
+      toggleEl.classList.toggle('on', optimizeScreen);
+    });
+  }
+
+  // Modal 1 — fechar
+  $('btnQualityClose')?.addEventListener('click',  () => closeModal('modalQuality'));
+  $('btnQualityCancel')?.addEventListener('click', () => closeModal('modalQuality'));
+
+  // Modal 1 → Modal 2
+  $('btnQualityNext')?.addEventListener('click', () => {
+    closeModal('modalQuality');
+    openModal('modalPicker');
+    buildPickerGrid('screens');
+  });
+
+  // Modal 2 — fechar
+  $('btnPickerClose')?.addEventListener('click',  () => closeModal('modalPicker'));
+  $('btnPickerCancel')?.addEventListener('click', () => closeModal('modalPicker'));
+
+  // Modal 2 — abas
+  document.querySelectorAll('.picker-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.picker-tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      buildPickerGrid(tab.dataset.tab);
+    });
+  });
+
+  // Modal 2 — compartilhar
+  $('btnPickerShare')?.addEventListener('click', () => {
+    closeModal('modalPicker');
+    doStartShare();
+  });
+
+  // Fechar ao clicar no overlay
+  $('modalQuality')?.addEventListener('click', e => { if (e.target === e.currentTarget) closeModal('modalQuality'); });
+  $('modalPicker')?.addEventListener('click',  e => { if (e.target === e.currentTarget) closeModal('modalPicker'); });
+}
+
+function buildPickerGrid(tab = 'screens') {
+  const grid = $('pickerGrid');
+  if (!grid) return;
+  grid.innerHTML = '';
+
+  const items = tab === 'screens'
+    ? [{ label: 'Tela inteira', icon: '🖥️' }, { label: 'Área selecionada', icon: '⬜' }]
+    : [{ label: 'Janela ativa', icon: '🪟' }, { label: 'Outra janela', icon: '📄' }];
+
+  items.forEach((item, i) => {
+    const div = document.createElement('div');
+    div.className = 'picker-item' + (i === 0 ? ' selected' : '');
+    div.innerHTML = `
+      <div class="picker-thumb">
+        <div class="picker-thumb-placeholder">${item.icon}</div>
+      </div>
+      <div class="picker-item-label">${item.label}</div>
+    `;
+    div.addEventListener('click', () => {
+      document.querySelectorAll('.picker-item').forEach(el => el.classList.remove('selected'));
+      div.classList.add('selected');
+      const shareBtn = $('btnPickerShare');
+      if (shareBtn) shareBtn.disabled = false;
+    });
+    grid.appendChild(div);
+  });
+
+  // Habilita o botão pois o primeiro está selecionado
+  const shareBtn = $('btnPickerShare');
+  if (shareBtn) shareBtn.disabled = false;
+}
+
+async function doStartShare() {
   try {
     screenStream = await navigator.mediaDevices.getDisplayMedia({
-      video: { frameRate: { ideal: 30 }, cursor: 'always' }, audio: true
+      video: { frameRate: { ideal: selectedFps, max: selectedFps }, cursor: 'always' },
+      audio: true
     });
     screenVideo.srcObject = screenStream;
     showScreen(socket.id, userName);
     screenStream.getTracks().forEach(track => {
-      peers.forEach((pc, uid) => {
-        pc.addTrack(track, screenStream);
-        renegotiate(uid);
-      });
+      peers.forEach((pc, uid) => { pc.addTrack(track, screenStream); renegotiate(uid); });
     });
     screenStream.getVideoTracks()[0].onended = stopShare;
     isSharing = true;
-    btnShareScreen.classList.add('sharing');
+    btnShareScreen?.classList.add('sharing');
     socket.emit('screen-share-started', { roomId });
     toast('Compartilhando tela', 'success');
   } catch (e) {
     if (e.name !== 'NotAllowedError') toast('Erro ao compartilhar', 'error');
   }
+}
+
+async function startShare() {
+  openModal('modalQuality');
 }
 
 function stopShare() {
@@ -460,6 +563,7 @@ btnCopyLinkMain?.addEventListener('click', () => copyText(roomLink));
 // ── Init ──────────────────────────────────────────
 async function init() {
   if (!localStorage.getItem('telas_username')) { location.href = '/'; return; }
+  initModals();
   await initMedia();
   initSocket();
 }

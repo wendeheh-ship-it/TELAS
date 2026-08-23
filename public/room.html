@@ -180,6 +180,83 @@
 
 </div>
 
+<!-- ════ MODAL 1 — Qualidade da transmissão ════ -->
+<div class="modal-overlay hidden" id="modalQuality">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 class="modal-title">Qualidade da transmissão</h2>
+      <button class="modal-close" id="btnQualityClose">✕</button>
+    </div>
+    <p class="modal-desc">Depois de começar, dá pra mudar a qualquer momento pelo botão da transmissão.</p>
+    <div class="modal-section">
+      <div class="modal-section-label">Resolução</div>
+      <div class="option-group" id="resolutionGroup">
+        <button class="option-btn active" data-value="source">Fonte</button>
+        <button class="option-btn" data-value="1440">1440p</button>
+        <button class="option-btn" data-value="1080">1080p</button>
+        <button class="option-btn" data-value="720">720p</button>
+        <button class="option-btn" data-value="480">480p</button>
+      </div>
+    </div>
+    <div class="modal-section">
+      <div class="modal-section-label">Taxa de quadros</div>
+      <div class="option-group" id="fpsGroup">
+        <button class="option-btn" data-value="5">5 fps</button>
+        <button class="option-btn" data-value="15">15 fps</button>
+        <button class="option-btn active" data-value="30">30 fps</button>
+        <button class="option-btn" data-value="60">60 fps</button>
+      </div>
+    </div>
+    <div class="modal-info-box">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+        <path d="M12 8v4M12 16h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+      <span>Conexão direta: vale até a resolução da fonte. Quanto mais gente na chamada, mais cópias a sua internet sobe.</span>
+    </div>
+    <div class="modal-footer">
+      <button class="modal-btn-cancel" id="btnQualityCancel">Cancelar</button>
+      <button class="modal-btn-primary" id="btnQualityNext">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+          <rect x="2" y="3" width="20" height="14" rx="2" stroke="currentColor" stroke-width="2"/>
+          <path d="M8 21h8M12 17v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        Compartilhar tela
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ════ MODAL 2 — Seleção de tela ════ -->
+<div class="modal-overlay hidden" id="modalPicker">
+  <div class="modal modal-wide">
+    <div class="modal-header">
+      <h2 class="modal-title">Compartilhar tela</h2>
+      <button class="modal-close" id="btnPickerClose">✕</button>
+    </div>
+    <div class="picker-tabs">
+      <button class="picker-tab active" data-tab="screens">Telas</button>
+      <button class="picker-tab" data-tab="windows">Janelas</button>
+    </div>
+    <div class="picker-grid" id="pickerGrid"></div>
+    <div class="picker-option-row">
+      <label class="toggle-row">
+        <div class="toggle-info">
+          <span class="toggle-label">Otimizar para compartilhamento de tela</span>
+          <span class="toggle-desc">Aumenta a nitidez e a taxa de quadros para conteúdo em movimento.</span>
+        </div>
+        <div class="toggle-switch" id="toggleOptimize">
+          <div class="toggle-thumb active"></div>
+        </div>
+      </label>
+    </div>
+    <div class="modal-footer">
+      <button class="modal-btn-cancel" id="btnPickerCancel">Cancelar</button>
+      <button class="modal-btn-primary" id="btnPickerShare" disabled>Compartilhar</button>
+    </div>
+  </div>
+</div>
+
 <input type="hidden" id="shareLinkInput" />
 <div class="toast" id="toast"></div>
 
