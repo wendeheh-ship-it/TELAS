@@ -1,717 +1,544 @@
-/* ═══════════════════════════════════════════════════════════════════════════════
-   TELAS — room.js
-   Lógica WebRTC: sinalização via Socket.IO, câmera, microfone, tela, chat
-═══════════════════════════════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════════
+   TELAS — room.js  |  WebRTC + Socket.IO
+═══════════════════════════════════════════════════════════════ */
 
-// ─── Configuração WebRTC ──────────────────────────────────────────────────────
 const ICE_SERVERS = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
-    { urls: 'stun:stun2.l.google.com:19302' },
   ]
 };
 
-// ─── Estado global ────────────────────────────────────────────────────────────
+// ── Estado ────────────────────────────────────────────────────
 const roomId   = window.location.pathname.split('/room/')[1];
 const userName = localStorage.getItem('telas_username') || 'Anônimo';
 
-let socket          = null;
-let localStream     = null;   // câmera + microfone
-let screenStream    = null;   // tela compartilhada
-let isSharing       = false;
-let micEnabled      = true;
-let camEnabled      = true;
-let chatOpen        = false;
-let unreadMessages  = 0;
+let socket         = null;
+let localStream    = null;
+let screenStream   = null;
+let isSharing      = false;
+let micEnabled     = true;
+let camEnabled     = true;
+let chatOpen       = false;
+let unreadCount    = 0;
 
-// peers: Map<socketId, RTCPeerConnection>
-const peers = new Map();
-// remoteStreams: Map<socketId, MediaStream>
-const remoteStreams = new Map();
+const peers        = new Map(); // socketId → RTCPeerConnection
+const remoteStreams = new Map(); // socketId → MediaStream
 
-// ─── Elementos DOM ────────────────────────────────────────────────────────────
-const myVideo           = document.getElementById('myVideo');
-const myVideoTile       = document.getElementById('myVideoTile');
-const myVideoLabel      = document.getElementById('myVideoLabel');
-const myMutedIcon       = document.getElementById('myMutedIcon');
-const screenVideo       = document.getElementById('screenVideo');
-const screenTile        = document.getElementById('screenTile');
-const screenLabel       = document.getElementById('screenLabel');
-const videoGrid         = document.getElementById('videoGrid');
-const emptyState        = document.getElementById('emptyState');
+// ── DOM ───────────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
 
-const btnShareScreen    = document.getElementById('btnShareScreen');
-const shareScreenLabel  = document.getElementById('shareScreenLabel');
-const btnToggleMic      = document.getElementById('btnToggleMic');
-const btnToggleCam      = document.getElementById('btnToggleCam');
-const btnLeave          = document.getElementById('btnLeave');
-const btnToggleChat     = document.getElementById('btnToggleChat');
-const btnCloseChat      = document.getElementById('btnCloseChat');
-const chatPanel         = document.getElementById('chatPanel');
-const chatMessages      = document.getElementById('chatMessages');
-const chatInput         = document.getElementById('chatInput');
-const btnSendChat       = document.getElementById('btnSendChat');
-const chatBadge         = document.getElementById('chatBadge');
+const myVideo          = $('myVideo');
+const myVideoTile      = $('myVideoTile');
+const myVideoLabel     = $('myVideoLabel');
+const myMutedIcon      = $('myMutedIcon');
+const myNoCamOverlay   = $('myNoCamOverlay');
+const myCardAvatar     = $('myCardAvatar');
+const myRing           = $('myRing');
+const screenVideo      = $('screenVideo');
+const screenTile       = $('screenTile');
+const screenLabel      = $('screenLabel');
+const videoGrid        = $('videoGrid');
+const emptyState       = $('emptyState');
 
-const roomIdDisplay     = document.getElementById('roomIdDisplay');
-const headerRoomName    = document.getElementById('headerRoomName');
-const participantsList  = document.getElementById('participantsList');
-const userCount         = document.getElementById('userCount');
-const myAvatarSidebar   = document.getElementById('myAvatarSidebar');
-const myNameSidebar     = document.getElementById('myNameSidebar');
-const btnCopyLink       = document.getElementById('btnCopyLink');
-const shareLinkInput    = document.getElementById('shareLinkInput');
-const btnCopyLinkMain   = document.getElementById('btnCopyLinkMain');
-const toastEl           = document.getElementById('toast');
+const btnShareScreen   = $('btnShareScreen');
+const shareScreenLabel = $('shareScreenLabel');
+const btnToggleMic     = $('btnToggleMic');
+const btnToggleCam     = $('btnToggleCam');
+const ctrlMic          = $('ctrlMic');
+const ctrlCam          = $('ctrlCam');
+const ctrlLeave        = $('ctrlLeave');
+const btnLeave         = $('btnLeave');
+const btnToggleChat    = $('btnToggleChat');
+const btnCloseChat     = $('btnCloseChat');
+const chatPanel        = $('chatPanel');
+const chatMessages     = $('chatMessages');
+const chatInput        = $('chatInput');
+const btnSendChat      = $('btnSendChat');
+const chatBadge        = $('chatBadge');
 
-// ─── Utilitários ──────────────────────────────────────────────────────────────
-function showToast(msg, type = 'info') {
+const myAvatarSidebar  = $('myAvatarSidebar');
+const myNameSidebar    = $('myNameSidebar');
+const participantsList = $('participantsList');
+const userCount        = $('userCount');
+const channelBadge     = $('channelBadge');
+const headerRoomName   = $('headerRoomName');
+const voiceStatusRoom  = $('voiceStatusRoom');
+const shareLinkInput   = $('shareLinkInput');
+const btnCopyLink      = $('btnCopyLink');
+const btnCopyLinkMain  = $('btnCopyLinkMain');
+const toastEl          = $('toast');
+
+// ── Utils ─────────────────────────────────────────────────────
+function toast(msg, type = 'info') {
   toastEl.textContent = msg;
   toastEl.className = `toast show ${type}`;
   clearTimeout(toastEl._t);
   toastEl._t = setTimeout(() => toastEl.classList.remove('show'), 3000);
 }
 
-function getInitial(name) {
-  return (name || '?')[0].toUpperCase();
+function initial(name) { return (name || '?')[0].toUpperCase(); }
+
+function avatarColor(id) {
+  const p = ['#5865f2','#23a559','#f0b232','#eb459e','#f23f42','#ff7043','#26a69a'];
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = id.charCodeAt(i) + ((h << 5) - h);
+  return p[Math.abs(h) % p.length];
 }
 
-function getAvatarColor(id) {
-  const colors = ['#5865F2','#57F287','#FEE75C','#EB459E','#ED4245','#FF7043','#26A69A'];
-  let hash = 0;
-  for (let i = 0; i < id.length; i++) hash = id.charCodeAt(i) + ((hash << 5) - hash);
-  return colors[Math.abs(hash) % colors.length];
+function timeStr(ts) {
+  return new Date(ts).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 }
 
-function formatTime(ts) {
-  const d = new Date(ts);
-  return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+function esc(str) {
+  return String(str || '')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#039;');
 }
 
-// ─── UI: Participantes ────────────────────────────────────────────────────────
+function copyText(text) {
+  navigator.clipboard.writeText(text)
+    .then(() => toast('Link copiado!', 'success'))
+    .catch(() => { /* fallback silencioso */ });
+}
+
+// ── Participantes (sidebar) ───────────────────────────────────
 function renderParticipants(users) {
   participantsList.innerHTML = '';
-  const count = users.length;
-  if (userCount) userCount.textContent = count;
-  const pcEl = document.getElementById('participantCount');
-  if (pcEl) pcEl.textContent = count;
+  userCount.textContent = users.length;
+  channelBadge.textContent = users.length;
 
-  const sorted = [...users].sort((a, b) => {
-    if (a.id === socket.id) return -1;
-    if (b.id === socket.id) return 1;
-    return 0;
-  });
+  const sorted = [...users].sort((a, b) =>
+    a.id === socket.id ? -1 : b.id === socket.id ? 1 : 0);
 
-  sorted.forEach(user => {
-    const isMe = user.id === socket.id;
-    const item = document.createElement('div');
-    // Suporta ambos os layouts (antigo e Discord)
-    item.className = `dc-voice-user${isMe ? ' me' : ''} participant-item${isMe ? ' me' : ''}`;
-    item.dataset.userId = user.id;
+  sorted.forEach(u => {
+    const isMe = u.id === socket.id;
+    const div  = document.createElement('div');
+    div.className = `sidebar-user${isMe ? ' me' : ''}`;
+    div.dataset.userId = u.id;
 
-    const color = getAvatarColor(user.id);
-    item.innerHTML = `
-      <div class="dc-voice-user-avatar" style="background:${color}">${getInitial(user.name)}</div>
-      <span class="dc-voice-user-name participant-name">${escapeHtml(user.name)}${isMe ? ' (você)' : ''}</span>
-      <div class="dc-voice-user-icons">
-        ${user.isSharing ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none"><rect x="2" y="3" width="20" height="14" rx="2" stroke="#faa81a" stroke-width="2"/></svg>' : ''}
-        <div class="status-dot ${user.isSharing ? 'sharing' : 'online'}"></div>
+    const color = avatarColor(u.id);
+    div.innerHTML = `
+      <div class="sidebar-user-avatar" style="background:${color}">${initial(u.name)}</div>
+      <span class="sidebar-user-name">${esc(u.name)}${isMe ? ' (você)' : ''}</span>
+      <div class="sidebar-user-icons ${!micEnabled && isMe ? 'muted' : ''}">
+        ${u.isSharing ? '<svg width="11" height="11" viewBox="0 0 24 24" fill="none"><rect x="2" y="3" width="20" height="14" rx="2" stroke="#f0b232" stroke-width="2"/></svg>' : ''}
       </div>
     `;
-    participantsList.appendChild(item);
+    participantsList.appendChild(div);
   });
 
-  // Esconde/mostra empty state
-  const otherUsers = users.filter(u => u.id !== socket.id);
-  emptyState.classList.toggle('hidden', otherUsers.length > 0);
+  const others = users.filter(u => u.id !== socket.id);
+  emptyState.classList.toggle('hidden', others.length > 0);
 }
 
-// ─── UI: Tiles de vídeo remoto ────────────────────────────────────────────────
-function createRemoteTile(userId, userName) {
-  const existing = document.getElementById(`tile-${userId}`);
-  if (existing) return existing;
+// ── Tiles remotos ─────────────────────────────────────────────
+function createRemoteTile(userId, uName) {
+  if ($(`tile-${userId}`)) return;
 
-  const tile = document.createElement('div');
-  tile.className = 'dc-video-tile';
-  tile.id = `tile-${userId}`;
+  const card = document.createElement('div');
+  card.className = 'participant-card';
+  card.id = `tile-${userId}`;
 
   const video = document.createElement('video');
   video.autoplay = true;
   video.playsinline = true;
   video.id = `video-${userId}`;
+  video.className = 'card-video';
 
-  const label = document.createElement('div');
-  label.className = 'dc-tile-label';
-  label.id = `label-${userId}`;
-  label.textContent = userName;
-
-  // Overlay sem câmera
-  const noCam = document.createElement('div');
-  noCam.className = 'no-cam-overlay';
-  noCam.id = `nocam-${userId}`;
-  const color = getAvatarColor(userId);
-  noCam.innerHTML = `
-    <div class="avatar-large" style="background:${color}">${getInitial(userName)}</div>
-    <span>${escapeHtml(userName)}</span>
+  const overlay = document.createElement('div');
+  overlay.className = 'card-overlay';
+  overlay.id = `overlay-${userId}`;
+  const color = avatarColor(userId);
+  overlay.innerHTML = `
+    <div class="card-avatar" style="background:${color}">${initial(uName)}</div>
+    <div class="speaking-ring" id="ring-${userId}"></div>
   `;
 
-  tile.appendChild(video);
-  tile.appendChild(noCam);
-  tile.appendChild(label);
-  videoGrid.appendChild(tile);
-  return tile;
+  const footer = document.createElement('div');
+  footer.className = 'card-footer';
+  footer.innerHTML = `
+    <span class="card-name" id="name-${userId}">${esc(uName)}</span>
+    <span class="card-muted hidden" id="muted-${userId}">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+        <line x1="1" y1="1" x2="23" y2="23" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <path d="M9 9v3a3 3 0 005.12 2.12M15 9.34V5a3 3 0 00-5.94-.6" stroke="currentColor" stroke-width="2"/>
+      </svg>
+    </span>
+  `;
+
+  card.appendChild(video);
+  card.appendChild(overlay);
+  card.appendChild(footer);
+  videoGrid.appendChild(card);
 }
 
 function removeRemoteTile(userId) {
-  const tile = document.getElementById(`tile-${userId}`);
-  if (tile) tile.remove();
+  $(`tile-${userId}`)?.remove();
 }
 
-function updateTileStream(userId, stream) {
-  const video = document.getElementById(`video-${userId}`);
-  const noCam = document.getElementById(`nocam-${userId}`);
+function setRemoteStream(userId, stream) {
+  const video   = $(`video-${userId}`);
+  const overlay = $(`overlay-${userId}`);
   if (!video) return;
 
-  const hasVideo = stream && stream.getVideoTracks().length > 0 &&
-                   stream.getVideoTracks().some(t => t.enabled && t.readyState === 'live');
-
+  const hasVid = stream?.getVideoTracks().some(t => t.enabled && t.readyState === 'live');
   video.srcObject = stream || null;
-  if (noCam) noCam.style.display = hasVideo ? 'none' : 'flex';
+  if (overlay) overlay.className = `card-overlay${hasVid ? ' hidden' : ''}`;
 }
 
-// ─── UI: Tela compartilhada ───────────────────────────────────────────────────
-function showScreenTile(userId, uName) {
+// ── Tela compartilhada ────────────────────────────────────────
+function showScreen(userId, uName) {
   screenTile.classList.remove('hidden');
   videoGrid.classList.add('has-screen');
   screenLabel.innerHTML = `
     <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
       <rect x="2" y="3" width="20" height="14" rx="2" stroke="currentColor" stroke-width="1.5"/>
-    </svg>
-    Tela de ${escapeHtml(uName)}
-  `;
+    </svg> Tela de ${esc(uName)}`;
 }
 
-function hideScreenTile() {
+function hideScreen() {
   screenTile.classList.add('hidden');
   videoGrid.classList.remove('has-screen');
   screenVideo.srcObject = null;
 }
 
-// ─── Chat ─────────────────────────────────────────────────────────────────────
-function appendChatMessage({ userId, userName: uName, message, timestamp, system = false }) {
+// ── Chat ──────────────────────────────────────────────────────
+function addChatMsg({ userId, userName: uName, message, timestamp, system = false }) {
   const isMe = userId === socket.id;
-
-  const div = document.createElement('div');
-  div.className = `dc-chat-msg${system ? ' system' : isMe ? ' mine' : ''}`;
+  const div  = document.createElement('div');
+  div.className = `chat-msg${system ? ' system' : isMe ? ' mine' : ''}`;
 
   if (system) {
-    div.innerHTML = `<div class="dc-msg-text">${escapeHtml(message)}</div>`;
+    div.innerHTML = `<div class="chat-msg-text">${esc(message)}</div>`;
   } else {
     div.innerHTML = `
-      <div class="dc-msg-header">
-        <span class="dc-msg-author">${escapeHtml(uName)}</span>
-        <span class="dc-msg-time">${formatTime(timestamp)}</span>
+      <div class="chat-msg-header">
+        <span class="chat-msg-author">${esc(uName)}</span>
+        <span class="chat-msg-time">${timeStr(timestamp)}</span>
       </div>
-      <div class="dc-msg-text">${escapeHtml(message)}</div>
-    `;
+      <div class="chat-msg-text">${esc(message)}</div>`;
   }
 
   chatMessages.appendChild(div);
   chatMessages.scrollTop = chatMessages.scrollHeight;
 
-  // Badge de não lido
   if (!chatOpen && !system) {
-    unreadMessages++;
-    chatBadge.textContent = unreadMessages > 9 ? '9+' : unreadMessages;
+    unreadCount++;
+    chatBadge.textContent = unreadCount > 9 ? '9+' : unreadCount;
     chatBadge.classList.remove('hidden');
   }
 }
 
-function sendChatMessage() {
+function sendChat() {
   const msg = chatInput.value.trim();
   if (!msg) return;
   socket.emit('chat-message', { roomId, message: msg });
   chatInput.value = '';
 }
 
-// ─── WebRTC: criar peer connection ────────────────────────────────────────────
-function createPeerConnection(userId) {
+// ── WebRTC ────────────────────────────────────────────────────
+function getPeer(userId) {
   if (peers.has(userId)) return peers.get(userId);
 
   const pc = new RTCPeerConnection(ICE_SERVERS);
   peers.set(userId, pc);
 
   // Adiciona trilhas locais
-  if (localStream) {
-    localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
-  }
-  // Adiciona tela se estiver compartilhando
-  if (screenStream) {
-    screenStream.getTracks().forEach(track => pc.addTrack(track, screenStream));
-  }
+  localStream?.getTracks().forEach(t => pc.addTrack(t, localStream));
+  if (screenStream) screenStream.getTracks().forEach(t => pc.addTrack(t, screenStream));
 
-  // ICE candidates
-  pc.onicecandidate = (e) => {
-    if (e.candidate) {
-      socket.emit('ice-candidate', { targetId: userId, candidate: e.candidate });
-    }
+  pc.onicecandidate = e => {
+    if (e.candidate) socket.emit('ice-candidate', { targetId: userId, candidate: e.candidate });
   };
 
-  // Recebe stream remoto
-  pc.ontrack = (e) => {
+  pc.ontrack = e => {
     const stream = e.streams[0];
     if (!stream) return;
-
     remoteStreams.set(userId, stream);
 
-    // Verifica se é tela (mais de uma track de vídeo ou label contém 'screen')
-    const videoTracks = stream.getVideoTracks();
-    const isScreen = videoTracks.some(t =>
-      t.label.toLowerCase().includes('screen') ||
-      t.label.toLowerCase().includes('display') ||
-      t.label.toLowerCase().includes('monitor') ||
-      t.label.toLowerCase().includes('window') ||
-      t.label.toLowerCase().includes('entire')
-    );
+    const isScreen = stream.getVideoTracks().some(t =>
+      /screen|display|monitor|window|entire/i.test(t.label));
 
     if (isScreen) {
       screenVideo.srcObject = stream;
       const uName = getUserName(userId);
-      showScreenTile(userId, uName);
+      showScreen(userId, uName);
     } else {
-      updateTileStream(userId, stream);
+      setRemoteStream(userId, stream);
     }
   };
 
   pc.onconnectionstatechange = () => {
-    console.log(`[WebRTC] ${userId}: ${pc.connectionState}`);
-    if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected') {
-      closePeerConnection(userId);
-    }
+    if (['failed','disconnected'].includes(pc.connectionState)) dropPeer(userId);
   };
 
   return pc;
 }
 
-function closePeerConnection(userId) {
+function dropPeer(userId) {
   const pc = peers.get(userId);
-  if (pc) {
-    pc.ontrack = null;
-    pc.onicecandidate = null;
-    pc.onconnectionstatechange = null;
-    pc.close();
-    peers.delete(userId);
-  }
+  if (pc) { pc.ontrack = null; pc.onicecandidate = null; pc.close(); peers.delete(userId); }
   remoteStreams.delete(userId);
 }
 
-// ─── WebRTC: negociação ───────────────────────────────────────────────────────
 async function callUser(userId) {
-  const pc = createPeerConnection(userId);
-  try {
-    const offer = await pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: true });
-    await pc.setLocalDescription(offer);
-    socket.emit('offer', { targetId: userId, offer: pc.localDescription });
-  } catch (err) {
-    console.error('[WebRTC] Erro ao criar offer:', err);
-  }
+  const pc = getPeer(userId);
+  const offer = await pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: true });
+  await pc.setLocalDescription(offer);
+  socket.emit('offer', { targetId: userId, offer: pc.localDescription });
 }
 
 async function handleOffer(fromId, offer) {
-  const pc = createPeerConnection(fromId);
-  try {
-    await pc.setRemoteDescription(new RTCSessionDescription(offer));
-    const answer = await pc.createAnswer();
-    await pc.setLocalDescription(answer);
-    socket.emit('answer', { targetId: fromId, answer: pc.localDescription });
-  } catch (err) {
-    console.error('[WebRTC] Erro ao processar offer:', err);
-  }
+  const pc = getPeer(fromId);
+  await pc.setRemoteDescription(new RTCSessionDescription(offer));
+  const answer = await pc.createAnswer();
+  await pc.setLocalDescription(answer);
+  socket.emit('answer', { targetId: fromId, answer: pc.localDescription });
 }
 
 async function handleAnswer(fromId, answer) {
-  const pc = peers.get(fromId);
-  if (!pc) return;
-  try {
-    await pc.setRemoteDescription(new RTCSessionDescription(answer));
-  } catch (err) {
-    console.error('[WebRTC] Erro ao processar answer:', err);
-  }
+  await peers.get(fromId)?.setRemoteDescription(new RTCSessionDescription(answer));
 }
 
-async function handleIceCandidate(fromId, candidate) {
-  const pc = peers.get(fromId);
-  if (!pc) return;
-  try {
-    await pc.addIceCandidate(new RTCIceCandidate(candidate));
-  } catch (err) {
-    // Ignora erros de ICE em duplicata
-  }
+async function handleIce(fromId, candidate) {
+  try { await peers.get(fromId)?.addIceCandidate(new RTCIceCandidate(candidate)); } catch {}
 }
 
-// Renegociar (quando adicionamos trilha de tela)
-async function renegotiateWithPeer(userId) {
+async function renegotiate(userId) {
   const pc = peers.get(userId);
   if (!pc) return;
-  try {
-    const offer = await pc.createOffer();
-    await pc.setLocalDescription(offer);
-    socket.emit('offer', { targetId: userId, offer: pc.localDescription });
-  } catch (err) {
-    console.error('[WebRTC] Erro ao renegociar:', err);
-  }
+  const offer = await pc.createOffer();
+  await pc.setLocalDescription(offer);
+  socket.emit('offer', { targetId: userId, offer: pc.localDescription });
 }
 
-// ─── Mídia: câmera e microfone ────────────────────────────────────────────────
-async function initLocalMedia() {
+// ── Mídia local ───────────────────────────────────────────────
+async function initMedia() {
   try {
     localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
     myVideo.srcObject = localStream;
-    const noCam = document.getElementById('nocam-me');
-    if (noCam) noCam.style.display = 'none';
-  } catch (err) {
-    console.warn('[Mídia] Não foi possível acessar câmera/mic:', err.message);
-    // Tenta só áudio
+    myNoCamOverlay.classList.add('hidden');
+  } catch {
     try {
       localStream = await navigator.mediaDevices.getUserMedia({ video: false, audio: true });
       camEnabled = false;
-      updateCamButton();
+      updateCamUI();
     } catch {
       localStream = new MediaStream();
       micEnabled = false;
       camEnabled = false;
-      updateMicButton();
-      updateCamButton();
+      updateMicUI();
+      updateCamUI();
     }
     myVideo.srcObject = localStream;
-    showNoCamOverlay('myVideoTile', userName);
+    showMyOverlay();
   }
 }
 
-function showNoCamOverlay(tileId, name) {
-  const tile = document.getElementById(tileId);
-  if (!tile) return;
-  let overlay = tile.querySelector('.no-cam-overlay');
-  if (!overlay) {
-    overlay = document.createElement('div');
-    overlay.className = 'no-cam-overlay';
-    overlay.id = 'nocam-me';
-    tile.insertBefore(overlay, tile.firstChild);
-  }
-  const color = getAvatarColor(socket ? socket.id : 'me');
-  overlay.innerHTML = `
-    <div class="avatar-large" style="background:${color}">${getInitial(name)}</div>
-    <span>${escapeHtml(name)}</span>
-  `;
-  overlay.style.display = 'flex';
+function showMyOverlay() {
+  myNoCamOverlay.classList.remove('hidden');
+  const color = socket ? avatarColor(socket.id) : '#5865f2';
+  myCardAvatar.style.background = color;
+  myCardAvatar.textContent = initial(userName);
 }
 
 function toggleMic() {
   micEnabled = !micEnabled;
-  if (localStream) {
-    localStream.getAudioTracks().forEach(t => { t.enabled = micEnabled; });
-  }
-  updateMicButton();
+  localStream?.getAudioTracks().forEach(t => { t.enabled = micEnabled; });
+  updateMicUI();
 }
 
 function toggleCam() {
   camEnabled = !camEnabled;
-  if (localStream) {
-    localStream.getVideoTracks().forEach(t => { t.enabled = camEnabled; });
+  localStream?.getVideoTracks().forEach(t => { t.enabled = camEnabled; });
+  updateCamUI();
+  if (camEnabled) {
+    myNoCamOverlay.classList.add('hidden');
+  } else {
+    showMyOverlay();
   }
-  updateCamButton();
-  // Mostra/esconde overlay sem câmera no tile próprio
-  const overlay = document.getElementById('nocam-me');
-  if (overlay) overlay.style.display = camEnabled ? 'none' : 'flex';
-  else if (!camEnabled) showNoCamOverlay('myVideoTile', userName);
 }
 
-function updateMicButton() {
-  btnToggleMic.classList.toggle('muted', !micEnabled);
-  btnToggleMic.title = micEnabled ? 'Silenciar microfone' : 'Ativar microfone';
-  myMutedIcon.classList.toggle('hidden', micEnabled);
+function updateMicUI() {
+  const muted = !micEnabled;
+  ctrlMic?.classList.toggle('muted', muted);
+  btnToggleMic?.classList.toggle('muted', muted);
+  myMutedIcon?.classList.toggle('hidden', !muted);
 }
 
-function updateCamButton() {
-  btnToggleCam.classList.toggle('muted', !camEnabled);
-  btnToggleCam.title = camEnabled ? 'Desligar câmera' : 'Ligar câmera';
+function updateCamUI() {
+  ctrlCam?.classList.toggle('muted', !camEnabled);
+  btnToggleCam?.classList.toggle('muted', !camEnabled);
 }
 
-// ─── Compartilhamento de tela ─────────────────────────────────────────────────
-async function startScreenShare() {
+// ── Screen share ──────────────────────────────────────────────
+async function startShare() {
   try {
     screenStream = await navigator.mediaDevices.getDisplayMedia({
-      video: { frameRate: { ideal: 30, max: 60 }, cursor: 'always' },
+      video: { frameRate: { ideal: 30 }, cursor: 'always' },
       audio: true
     });
 
-    // Mostra na tela local
     screenVideo.srcObject = screenStream;
-    showScreenTile(socket.id, userName);
+    showScreen(socket.id, userName);
 
-    // Adiciona trilhas em todos os peers
     screenStream.getTracks().forEach(track => {
-      peers.forEach((pc, userId) => {
-        pc.addTrack(track, screenStream);
-        renegotiateWithPeer(userId);
+      peers.forEach((_, uid) => {
+        getPeer(uid).addTrack(track, screenStream);
+        renegotiate(uid);
       });
     });
 
-    // Quando o usuário para pelo botão do navegador
-    screenStream.getVideoTracks()[0].onended = () => {
-      stopScreenShare();
-    };
+    screenStream.getVideoTracks()[0].onended = stopShare;
 
     isSharing = true;
-    btnShareScreen.classList.add('active');
-    shareScreenLabel.textContent = 'Parar Compartilhamento';
+    btnShareScreen.classList.add('sharing');
+    shareScreenLabel.textContent = 'Parar';
     socket.emit('screen-share-started', { roomId });
-    showToast('Compartilhamento de tela iniciado', 'success');
-
-  } catch (err) {
-    if (err.name !== 'NotAllowedError') {
-      console.error('[Tela] Erro ao compartilhar:', err);
-      showToast('Não foi possível compartilhar a tela', 'error');
-    }
+    toast('Compartilhamento iniciado', 'success');
+  } catch (e) {
+    if (e.name !== 'NotAllowedError') toast('Não foi possível compartilhar', 'error');
   }
 }
 
-function stopScreenShare() {
-  if (screenStream) {
-    screenStream.getTracks().forEach(t => t.stop());
-
-    // Remove trilhas dos peers
-    peers.forEach((pc, userId) => {
-      const senders = pc.getSenders();
-      senders.forEach(sender => {
-        if (screenStream.getTracks().includes(sender.track)) {
-          pc.removeTrack(sender);
-        }
-      });
-      renegotiateWithPeer(userId);
+function stopShare() {
+  screenStream?.getTracks().forEach(t => {
+    t.stop();
+    peers.forEach((pc) => {
+      pc.getSenders().filter(s => s.track === t).forEach(s => pc.removeTrack(s));
     });
-
-    screenStream = null;
-  }
-
-  hideScreenTile();
+  });
+  peers.forEach((_, uid) => renegotiate(uid));
+  screenStream = null;
+  hideScreen();
   isSharing = false;
-  btnShareScreen.classList.remove('active');
-  shareScreenLabel.textContent = 'Compartilhar Tela';
+  btnShareScreen.classList.remove('sharing');
+  shareScreenLabel.textContent = 'Tela';
   socket.emit('screen-share-stopped', { roomId });
-  showToast('Compartilhamento encerrado', 'info');
+  toast('Compartilhamento encerrado', 'info');
 }
 
-// ─── Socket.IO ────────────────────────────────────────────────────────────────
+function getUserName(userId) {
+  return $(`name-${userId}`)?.textContent ||
+    participantsList.querySelector(`[data-user-id="${userId}"] .sidebar-user-name`)?.textContent?.replace(' (você)','') ||
+    'Usuário';
+}
+
+// ── Socket.IO ─────────────────────────────────────────────────
 function initSocket() {
   socket = io();
 
-  // Conexão estabelecida — entrar na sala
   socket.on('connect', () => {
-    console.log('[Socket] Conectado:', socket.id);
     socket.emit('join-room', { roomId, userName });
 
-    // Atualiza UI com dados próprios
-    myVideoLabel.textContent = userName + ' (você)';
+    myVideoLabel.textContent = 'Você';
     myNameSidebar.textContent = userName;
-    myAvatarSidebar.textContent = getInitial(userName);
-    myAvatarSidebar.style.background = getAvatarColor(socket.id);
-    roomIdDisplay && (roomIdDisplay.textContent = roomId);
-    headerRoomName.textContent = `geral`;
+    myAvatarSidebar.textContent = initial(userName);
+    myAvatarSidebar.style.background = avatarColor(socket.id);
+    headerRoomName.textContent = 'geral';
+    voiceStatusRoom.textContent = `sala #${roomId}`;
     document.title = `TELAS — #${roomId}`;
 
-    // Preenche info de voz estilo Discord
-    const voiceRoomId = document.getElementById('voiceRoomId');
-    if (voiceRoomId) voiceRoomId.textContent = roomId;
+    const link = `${location.origin}/room/${roomId}`;
+    if (shareLinkInput) shareLinkInput.value = link;
 
-    const fullLink = `${window.location.origin}/room/${roomId}`;
-    if (shareLinkInput) shareLinkInput.value = fullLink;
+    showMyOverlay();
   });
 
-  // Lista de usuários ao entrar
   socket.on('room-users', ({ users }) => {
     renderParticipants(users);
-    // Chama cada usuário já na sala
-    users.forEach(user => {
-      if (user.id !== socket.id) {
-        createRemoteTile(user.id, user.name);
-        callUser(user.id);
+    users.forEach(u => {
+      if (u.id !== socket.id) {
+        createRemoteTile(u.id, u.name);
+        callUser(u.id);
       }
     });
   });
 
-  // Novo usuário entrou
   socket.on('user-joined', ({ userId, userName: uName, users }) => {
-    console.log(`[+] ${uName} entrou`);
     renderParticipants(users);
     createRemoteTile(userId, uName);
-    appendChatMessage({ userId: null, userName: null, message: `${uName} entrou na sala`, system: true, timestamp: Date.now() });
-    showToast(`${uName} entrou na sala`, 'success');
-    // O novo usuário irá fazer o offer para nós via room-users
+    addChatMsg({ userId: null, userName: null, message: `${uName} entrou na sala`, system: true, timestamp: Date.now() });
+    toast(`${uName} entrou`, 'success');
   });
 
-  // Usuário saiu
   socket.on('user-left', ({ userId, userName: uName, users }) => {
-    console.log(`[-] ${uName} saiu`);
-    closePeerConnection(userId);
+    dropPeer(userId);
     removeRemoteTile(userId);
     renderParticipants(users);
-
-    // Se estava compartilhando tela, esconde
-    if (screenVideo.srcObject && remoteStreams.get(userId) === screenVideo.srcObject) {
-      hideScreenTile();
-    }
-
-    appendChatMessage({ userId: null, userName: null, message: `${uName} saiu da sala`, system: true, timestamp: Date.now() });
-    showToast(`${uName} saiu da sala`, 'info');
+    if (remoteStreams.get(userId) === screenVideo.srcObject) hideScreen();
+    addChatMsg({ userId: null, userName: null, message: `${uName} saiu da sala`, system: true, timestamp: Date.now() });
+    toast(`${uName} saiu`, 'info');
   });
 
-  // Offer recebido
-  socket.on('offer', ({ fromId, fromName, offer }) => {
-    handleOffer(fromId, offer);
-  });
+  socket.on('offer', ({ fromId, offer })             => handleOffer(fromId, offer));
+  socket.on('answer', ({ fromId, answer })            => handleAnswer(fromId, answer));
+  socket.on('ice-candidate', ({ fromId, candidate }) => handleIce(fromId, candidate));
 
-  // Answer recebido
-  socket.on('answer', ({ fromId, answer }) => {
-    handleAnswer(fromId, answer);
-  });
-
-  // ICE candidate recebido
-  socket.on('ice-candidate', ({ fromId, candidate }) => {
-    handleIceCandidate(fromId, candidate);
-  });
-
-  // Alguém começou a compartilhar tela
   socket.on('screen-share-started', ({ userId, userName: uName }) => {
-    // A tela vai aparecer via ontrack
-    appendChatMessage({ userId: null, userName: null, message: `${uName} está compartilhando a tela 🖥️`, system: true, timestamp: Date.now() });
-    // Atualiza participante na lista
-    const item = participantsList.querySelector(`[data-user-id="${userId}"]`);
-    if (item) {
-      const dot = item.querySelector('.status-dot');
-      if (dot) { dot.className = 'status-dot sharing'; }
-    }
+    addChatMsg({ userId: null, userName: null, message: `${uName} está compartilhando a tela 🖥️`, system: true, timestamp: Date.now() });
   });
 
-  // Alguém parou de compartilhar tela
   socket.on('screen-share-stopped', ({ userId }) => {
-    hideScreenTile();
-    const item = participantsList.querySelector(`[data-user-id="${userId}"]`);
-    if (item) {
-      const dot = item.querySelector('.status-dot');
-      if (dot) { dot.className = 'status-dot online'; }
-    }
+    if ($(`video-${userId}`)?.srcObject === screenVideo.srcObject) hideScreen();
   });
 
-  // Chat
-  socket.on('chat-message', (data) => {
-    appendChatMessage(data);
-  });
+  socket.on('chat-message', data => addChatMsg(data));
 
-  // Desconexão
-  socket.on('disconnect', () => {
-    console.warn('[Socket] Desconectado');
-    showToast('Conexão perdida. Reconectando...', 'error');
-  });
-
-  socket.on('reconnect', () => {
-    showToast('Reconectado!', 'success');
-    socket.emit('join-room', { roomId, userName });
-  });
+  socket.on('disconnect', () => toast('Conexão perdida…', 'error'));
+  socket.on('reconnect',  () => { toast('Reconectado!', 'success'); socket.emit('join-room', { roomId, userName }); });
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-function getUserName(userId) {
-  const item = participantsList.querySelector(`[data-user-id="${userId}"] .participant-name`);
-  return item ? item.textContent.replace(' (você)', '') : 'Usuário';
+// ── Event listeners ───────────────────────────────────────────
+btnShareScreen.addEventListener('click', () => isSharing ? stopShare() : startShare());
+
+// Mic — dois botões (sidebar e barra de controles)
+ctrlMic?.addEventListener('click', toggleMic);
+btnToggleMic?.addEventListener('click', toggleMic);
+
+// Cam — dois botões
+ctrlCam?.addEventListener('click', toggleCam);
+btnToggleCam?.addEventListener('click', toggleCam);
+
+// Sair — dois botões
+function leaveRoom() {
+  if (!confirm('Sair da sala?')) return;
+  localStream?.getTracks().forEach(t => t.stop());
+  screenStream?.getTracks().forEach(t => t.stop());
+  peers.forEach(pc => pc.close());
+  socket?.disconnect();
+  location.href = '/';
 }
-
-function escapeHtml(str) {
-  if (!str) return '';
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-}
-
-function copyToClipboard(text) {
-  navigator.clipboard.writeText(text).then(() => {
-    showToast('Link copiado!', 'success');
-  }).catch(() => {
-    // Fallback
-    const ta = document.createElement('textarea');
-    ta.value = text;
-    document.body.appendChild(ta);
-    ta.select();
-    document.execCommand('copy');
-    ta.remove();
-    showToast('Link copiado!', 'success');
-  });
-}
-
-// ─── Event listeners ──────────────────────────────────────────────────────────
-btnShareScreen.addEventListener('click', () => {
-  if (isSharing) stopScreenShare();
-  else startScreenShare();
-});
-
-btnToggleMic.addEventListener('click', toggleMic);
-btnToggleCam.addEventListener('click', toggleCam);
-
-btnLeave.addEventListener('click', () => {
-  if (confirm('Tem certeza que quer sair da sala?')) {
-    // Limpa streams
-    localStream?.getTracks().forEach(t => t.stop());
-    screenStream?.getTracks().forEach(t => t.stop());
-    peers.forEach(pc => pc.close());
-    socket?.disconnect();
-    window.location.href = '/';
-  }
-});
+ctrlLeave?.addEventListener('click', leaveRoom);
+btnLeave?.addEventListener('click', leaveRoom);
 
 // Chat
-btnToggleChat.addEventListener('click', () => {
+btnToggleChat?.addEventListener('click', () => {
   chatOpen = !chatOpen;
-  const panel = document.getElementById('chatPanel');
-  panel.classList.toggle('open', chatOpen);
+  chatPanel.classList.toggle('open', chatOpen);
   if (chatOpen) {
-    unreadMessages = 0;
+    unreadCount = 0;
     chatBadge.classList.add('hidden');
     chatInput.focus();
   }
 });
-
-const btnCloseChatEl = document.getElementById('btnCloseChat');
-if (btnCloseChatEl) btnCloseChatEl.addEventListener('click', () => {
+btnCloseChat?.addEventListener('click', () => {
   chatOpen = false;
-  document.getElementById('chatPanel').classList.remove('open');
+  chatPanel.classList.remove('open');
 });
-
-btnSendChat.addEventListener('click', sendChatMessage);
-chatInput.addEventListener('keydown', e => {
-  if (e.key === 'Enter' && !e.shiftKey) {
-    e.preventDefault();
-    sendChatMessage();
-  }
-});
+btnSendChat?.addEventListener('click', sendChat);
+chatInput?.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); } });
 
 // Copiar link
-const roomLink = `${window.location.origin}/room/${roomId}`;
-btnCopyLink?.addEventListener('click', () => copyToClipboard(roomLink));
-btnCopyLinkMain?.addEventListener('click', () => copyToClipboard(roomLink));
+const roomLink = `${location.origin}/room/${roomId}`;
+btnCopyLink?.addEventListener('click', () => copyText(roomLink));
+btnCopyLinkMain?.addEventListener('click', () => copyText(roomLink));
 
-// ─── Inicialização ────────────────────────────────────────────────────────────
+// ── Init ──────────────────────────────────────────────────────
 async function init() {
-  // Redireciona se não tiver nome
-  if (!localStorage.getItem('telas_username')) {
-    window.location.href = '/';
-    return;
-  }
-
-  await initLocalMedia();
+  if (!localStorage.getItem('telas_username')) { location.href = '/'; return; }
+  await initMedia();
   initSocket();
 }
 
