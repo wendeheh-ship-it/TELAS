@@ -320,7 +320,7 @@ io.on('connection', (socket) => {
 });
 
 // ─── Start ────────────────────────────────────────────────────────────────────
-const PORT = process.env.PORT || process.env.RAILWAY_TCP_PROXY_PORT || 3000;
+const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`\n🚀  App:    http://localhost:${PORT}`);
   console.log(`🔐  Admin:  http://localhost:${PORT}/admin`);
