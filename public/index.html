@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TELAS — Compartilhe sua tela</title>
+  <link rel="stylesheet" href="/css/style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+</head>
+<body class="lobby-page">
+
+  <!-- Fundo animado -->
+  <div class="bg-blobs">
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+    <div class="blob blob-3"></div>
+  </div>
+
+  <div class="lobby-container">
+    <!-- Logo / Header -->
+    <div class="lobby-header">
+      <div class="logo">
+        <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+          <rect width="48" height="48" rx="16" fill="#5865F2"/>
+          <path d="M12 16h24M12 24h16M12 32h20" stroke="white" stroke-width="3" stroke-linecap="round"/>
+          <circle cx="36" cy="32" r="6" fill="#57F287"/>
+        </svg>
+      </div>
+      <h1 class="lobby-title">TELAS</h1>
+      <p class="lobby-subtitle">Compartilhe sua tela com seus amigos em tempo real</p>
+    </div>
+
+    <!-- Card principal -->
+    <div class="lobby-card">
+      <!-- Campo de nome -->
+      <div class="input-group">
+        <label for="userName">Seu nome</label>
+        <input
+          type="text"
+          id="userName"
+          placeholder="Como quer ser chamado?"
+          maxlength="24"
+          autocomplete="off"
+        />
+      </div>
+
+      <!-- Divider -->
+      <div class="divider">
+        <span>o que você quer fazer?</span>
+      </div>
+
+      <!-- Ações -->
+      <div class="lobby-actions">
+        <!-- Criar sala -->
+        <button class="btn btn-primary" id="btnCreateRoom">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+            <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+          </svg>
+          Criar nova sala
+        </button>
+
+        <!-- Separador -->
+        <div class="action-separator">ou entre em uma sala existente</div>
+
+        <!-- Entrar em sala -->
+        <div class="join-group">
+          <input
+            type="text"
+            id="roomIdInput"
+            placeholder="Código da sala (ex: a1b2c3d4)"
+            maxlength="8"
+            autocomplete="off"
+          />
+          <button class="btn btn-secondary" id="btnJoinRoom">
+            Entrar
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Features -->
+    <div class="features">
+      <div class="feature">
+        <span class="feature-icon">🖥️</span>
+        <span>Compartilhamento de tela</span>
+      </div>
+      <div class="feature">
+        <span class="feature-icon">🎙️</span>
+        <span>Áudio em tempo real</span>
+      </div>
+      <div class="feature">
+        <span class="feature-icon">💬</span>
+        <span>Chat integrado</span>
+      </div>
+      <div class="feature">
+        <span class="feature-icon">👥</span>
+        <span>Múltiplos participantes</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast de erro -->
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const btnCreate = document.getElementById('btnCreateRoom');
+    const btnJoin   = document.getElementById('btnJoinRoom');
+    const nameInput = document.getElementById('userName');
+    const roomInput = document.getElementById('roomIdInput');
+    const toast     = document.getElementById('toast');
+
+    // Recupera nome salvo
+    const savedName = localStorage.getItem('telas_username');
+    if (savedName) nameInput.value = savedName;
+
+    function showToast(msg, type = 'error') {
+      toast.textContent = msg;
+      toast.className = `toast show ${type}`;
+      setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+
+    function getName() {
+      const name = nameInput.value.trim();
+      if (!name) {
+        showToast('Digite seu nome antes de continuar!');
+        nameInput.focus();
+        return null;
+      }
+      localStorage.setItem('telas_username', name);
+      return name;
+    }
+
+    // Criar sala
+    btnCreate.addEventListener('click', async () => {
+      if (!getName()) return;
+      btnCreate.disabled = true;
+      btnCreate.textContent = 'Criando...';
+      try {
+        const res  = await fetch('/api/create-room');
+        const data = await res.json();
+        window.location.href = `/room/${data.roomId}`;
+      } catch {
+        showToast('Erro ao criar sala. Tente novamente.');
+        btnCreate.disabled = false;
+        btnCreate.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg> Criar nova sala`;
+      }
+    });
+
+    // Entrar em sala
+    btnJoin.addEventListener('click', () => {
+      if (!getName()) return;
+      const roomId = roomInput.value.trim().toLowerCase();
+      if (!roomId) {
+        showToast('Digite o código da sala!');
+        roomInput.focus();
+        return;
+      }
+      if (roomId.length !== 8) {
+        showToast('Código da sala deve ter 8 caracteres.');
+        roomInput.focus();
+        return;
+      }
+      window.location.href = `/room/${roomId}`;
+    });
+
+    // Enter nos inputs
+    nameInput.addEventListener('keydown', e => { if (e.key === 'Enter') roomInput.focus(); });
+    roomInput.addEventListener('keydown', e => { if (e.key === 'Enter') btnJoin.click(); });
+  </script>
+</body>
+</html>

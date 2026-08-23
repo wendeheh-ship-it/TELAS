@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TELAS — Painel Admin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/admin.css" />
+</head>
+<body>
+
+  <!-- ══ TELA DE LOGIN ══════════════════════════════════════════════════════ -->
+  <div id="loginScreen" class="login-screen">
+    <div class="login-card">
+      <div class="login-logo">
+        <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+          <rect width="48" height="48" rx="16" fill="#5865F2"/>
+          <path d="M12 16h24M12 24h16M12 32h20" stroke="white" stroke-width="3" stroke-linecap="round"/>
+          <circle cx="36" cy="32" r="6" fill="#57F287"/>
+        </svg>
+      </div>
+      <h1>Painel Admin</h1>
+      <p class="login-sub">TELAS — Gerenciamento de acesso</p>
+
+      <div class="my-ip-box" id="myIpBox">
+        <span class="ip-label">Seu IP:</span>
+        <span class="ip-value" id="myIpValue">carregando...</span>
+      </div>
+
+      <div class="form-group">
+        <label>Senha de administrador</label>
+        <div class="input-with-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+            <rect x="3" y="11" width="18" height="11" rx="2" stroke="currentColor" stroke-width="2"/>
+            <path d="M7 11V7a5 5 0 0110 0v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+          <input type="password" id="loginPassword" placeholder="Digite a senha..." autofocus />
+        </div>
+      </div>
+
+      <button class="btn btn-primary w-full" id="btnLogin">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+          <path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4M10 17l5-5-5-5M15 12H3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        Entrar
+      </button>
+      <div class="login-error hidden" id="loginError">Senha incorreta. Tente novamente.</div>
+    </div>
+  </div>
+
+  <!-- ══ PAINEL PRINCIPAL ═══════════════════════════════════════════════════ -->
+  <div id="adminPanel" class="admin-layout hidden">
+
+    <!-- Sidebar -->
+    <aside class="admin-sidebar">
+      <div class="admin-brand">
+        <svg width="28" height="28" viewBox="0 0 48 48" fill="none">
+          <rect width="48" height="48" rx="14" fill="#5865F2"/>
+          <path d="M12 16h24M12 24h16M12 32h20" stroke="white" stroke-width="3" stroke-linecap="round"/>
+          <circle cx="36" cy="32" r="6" fill="#57F287"/>
+        </svg>
+        <span>TELAS Admin</span>
+      </div>
+
+      <nav class="admin-nav">
+        <a class="nav-item active" data-tab="dashboard">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+            <rect x="3" y="3" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2"/>
+            <rect x="14" y="3" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2"/>
+            <rect x="3" y="14" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2"/>
+            <rect x="14" y="14" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2"/>
+          </svg>
+          Dashboard
+        </a>
+        <a class="nav-item" data-tab="whitelist">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+            <path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          Whitelist de IPs
+          <span class="nav-badge" id="navIpCount">0</span>
+        </a>
+        <a class="nav-item" data-tab="rooms">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+            <rect x="2" y="3" width="20" height="14" rx="2" stroke="currentColor" stroke-width="2"/>
+            <path d="M8 21h8M12 17v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+          Salas Online
+          <span class="nav-badge live" id="navRoomCount">0</span>
+        </a>
+        <a class="nav-item" data-tab="logs">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+            <path d="M14 2v6h6M16 13H8M16 17H8M10 9H8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+          Logs de Acesso
+        </a>
+        <a class="nav-item" data-tab="settings">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/>
+            <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" stroke="currentColor" stroke-width="2"/>
+          </svg>
+          Configurações
+        </a>
+      </nav>
+
+      <div class="admin-sidebar-footer">
+        <div class="my-ip-mini">
+          <span>Seu IP:</span>
+          <strong id="myIpSidebar">—</strong>
+        </div>
+        <button class="btn btn-ghost btn-sm w-full" id="btnLogout">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+            <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          Sair
+        </button>
+      </div>
+    </aside>
+
+    <!-- Conteúdo principal -->
+    <main class="admin-main">
+
+      <!-- ── Dashboard ──────────────────────────────────────────────────────── -->
+      <section id="tab-dashboard" class="tab-content active">
+        <div class="page-header">
+          <h2>Dashboard</h2>
+          <button class="btn btn-ghost btn-sm" id="btnRefreshDash">↻ Atualizar</button>
+        </div>
+
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-icon green">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="currentColor" stroke-width="2"/>
+              </svg>
+            </div>
+            <div>
+              <div class="stat-value" id="statIpCount">0</div>
+              <div class="stat-label">IPs na whitelist</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon blue">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                <rect x="2" y="3" width="20" height="14" rx="2" stroke="currentColor" stroke-width="2"/>
+                <path d="M8 21h8M12 17v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+            </div>
+            <div>
+              <div class="stat-value" id="statRoomCount">0</div>
+              <div class="stat-label">Salas ativas</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon purple">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+            </div>
+            <div>
+              <div class="stat-value" id="statUserCount">0</div>
+              <div class="stat-label">Usuários online</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon" id="statModeCard">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                <path d="M12 8v4M12 16h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+            </div>
+            <div>
+              <div class="stat-value" id="statMode">—</div>
+              <div class="stat-label">Modo de acesso</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Salas resumo -->
+        <div class="card mt-24">
+          <div class="card-header">
+            <h3>Salas em andamento</h3>
+          </div>
+          <div id="dashRooms" class="room-list">
+            <div class="empty-msg">Nenhuma sala ativa no momento.</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── Whitelist ──────────────────────────────────────────────────────── -->
+      <section id="tab-whitelist" class="tab-content">
+        <div class="page-header">
+          <h2>Whitelist de IPs</h2>
+          <div class="header-actions">
+            <div class="mode-toggle">
+              <span>Proteção:</span>
+              <label class="toggle-switch">
+                <input type="checkbox" id="toggleWhitelistMode" />
+                <span class="toggle-slider"></span>
+              </label>
+              <span id="modeLabel" class="mode-label off">DESLIGADA</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="info-banner" id="modeBanner">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+            <path d="M12 8v4M12 16h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+          <span id="modeBannerText">Modo livre — todos podem acessar o app.</span>
+        </div>
+
+        <!-- Formulário de adição -->
+        <div class="card">
+          <div class="card-header">
+            <h3>Adicionar IP</h3>
+          </div>
+          <div class="add-ip-form">
+            <div class="form-row">
+              <div class="form-group flex-1">
+                <label>Endereço IP</label>
+                <input type="text" id="newIpInput" placeholder="ex: 192.168.1.10" />
+              </div>
+              <div class="form-group flex-1">
+                <label>Rótulo (opcional)</label>
+                <input type="text" id="newIpLabel" placeholder="ex: PC do João" maxlength="60" />
+              </div>
+            </div>
+            <div class="form-row gap-8">
+              <button class="btn btn-primary" id="btnAddIp">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+                </svg>
+                Adicionar IP
+              </button>
+              <button class="btn btn-ghost" id="btnAddMyIp">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="currentColor" stroke-width="2"/>
+                </svg>
+                Adicionar meu IP
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Lista de IPs -->
+        <div class="card mt-16">
+          <div class="card-header">
+            <h3>IPs liberados <span class="badge" id="ipListCount">0</span></h3>
+            <button class="btn btn-danger-ghost btn-sm" id="btnClearIps">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                <polyline points="3 6 5 6 21 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6M10 11v6M14 11v6M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+              Limpar tudo
+            </button>
+          </div>
+          <div id="ipList" class="ip-list">
+            <div class="empty-msg">Nenhum IP cadastrado.</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── Salas Online ───────────────────────────────────────────────────── -->
+      <section id="tab-rooms" class="tab-content">
+        <div class="page-header">
+          <h2>Salas Online</h2>
+          <button class="btn btn-ghost btn-sm" id="btnRefreshRooms">↻ Atualizar</button>
+        </div>
+        <div id="roomsList" class="rooms-grid">
+          <div class="empty-msg">Nenhuma sala ativa.</div>
+        </div>
+      </section>
+
+      <!-- ── Logs ───────────────────────────────────────────────────────────── -->
+      <section id="tab-logs" class="tab-content">
+        <div class="page-header">
+          <h2>Logs de Acesso</h2>
+          <div class="header-actions">
+            <button class="btn btn-ghost btn-sm" id="btnRefreshLogs">↻ Atualizar</button>
+            <button class="btn btn-danger-ghost btn-sm" id="btnClearLogs">🗑 Limpar logs</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="log-table-wrap">
+            <table class="log-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>IP</th>
+                  <th>Ação</th>
+                  <th>Detalhe</th>
+                  <th>Data/Hora</th>
+                </tr>
+              </thead>
+              <tbody id="logsBody">
+                <tr><td colspan="5" class="empty-msg">Nenhum log.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── Configurações ─────────────────────────────────────────────────── -->
+      <section id="tab-settings" class="tab-content">
+        <div class="page-header"><h2>Configurações</h2></div>
+
+        <div class="card">
+          <div class="card-header"><h3>🔑 Trocar senha do admin</h3></div>
+          <div class="settings-form">
+            <div class="form-group">
+              <label>Nova senha</label>
+              <input type="password" id="newPassInput" placeholder="Mínimo 4 caracteres" />
+            </div>
+            <div class="form-group">
+              <label>Confirmar nova senha</label>
+              <input type="password" id="confirmPassInput" placeholder="Repita a senha" />
+            </div>
+            <button class="btn btn-primary" id="btnChangePass">Salvar nova senha</button>
+            <div class="feedback hidden" id="passFeedback"></div>
+          </div>
+        </div>
+
+        <div class="card mt-16">
+          <div class="card-header"><h3>ℹ️ Informações do sistema</h3></div>
+          <div class="info-list">
+            <div class="info-row">
+              <span>Banco de dados</span>
+              <strong>SQLite (telas.db)</strong>
+            </div>
+            <div class="info-row">
+              <span>Seu IP</span>
+              <strong id="myIpSettings">—</strong>
+            </div>
+            <div class="info-row">
+              <span>Link do app</span>
+              <strong id="appLink">—</strong>
+            </div>
+            <div class="info-row">
+              <span>Link do admin</span>
+              <strong id="adminLink">—</strong>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+
+  <script src="/js/admin.js"></script>
+</body>
+</html>

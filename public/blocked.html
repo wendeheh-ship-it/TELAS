@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TELAS — Acesso Negado</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #0f1117; color: #e6edf3;
+      min-height: 100vh; display: flex;
+      align-items: center; justify-content: center;
+    }
+    .card {
+      text-align: center; max-width: 420px;
+      padding: 48px 36px;
+      background: #161b22; border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 16px; box-shadow: 0 8px 32px rgba(0,0,0,.5);
+    }
+    .icon { font-size: 64px; margin-bottom: 20px; }
+    h1 { font-size: 26px; font-weight: 700; margin-bottom: 10px; color: #f85149; }
+    p { color: #8b949e; font-size: 15px; line-height: 1.6; }
+    .ip-box {
+      margin: 20px auto 0;
+      display: inline-flex; align-items: center; gap: 8px;
+      background: #1c2128; border: 1px solid rgba(255,255,255,.08);
+      border-radius: 8px; padding: 10px 18px;
+      font-size: 14px; color: #8b949e;
+    }
+    .ip-val { font-family: monospace; font-weight: 700; color: #58a6ff; }
+    .contact {
+      margin-top: 24px; font-size: 13px; color: #484f58;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon">🚫</div>
+    <h1>Acesso Negado</h1>
+    <p>Seu IP não está na lista de acesso autorizado.<br>
+       Peça ao administrador para liberar seu IP.</p>
+
+    <div class="ip-box">
+      <span>Seu IP:</span>
+      <span class="ip-val" id="myIp">carregando...</span>
+    </div>
+
+    <p class="contact">
+      Para solicitar acesso, envie seu IP para o administrador da sala.
+    </p>
+  </div>
+
+  <script>
+    fetch('/api/myip').then(r => r.json()).then(d => {
+      document.getElementById('myIp').textContent = d.ip || 'desconhecido';
+    }).catch(() => {
+      document.getElementById('myIp').textContent = 'desconhecido';
+    });
+  </script>
+</body>
+</html>
