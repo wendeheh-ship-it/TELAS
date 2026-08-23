@@ -49,13 +49,13 @@ const ctrlMic          = $('ctrlMic');
 const ctrlCam          = $('ctrlCam');
 const ctrlLeave        = $('ctrlLeave');
 const btnLeave         = $('btnLeave');
-const btnToggleChat    = $('btnToggleChat');
-const btnCloseChat     = $('btnCloseChat');
-const chatPanel        = $('chatPanel');
-const chatMessages     = $('chatMessages');
-const chatInput        = $('chatInput');
-const btnSendChat      = $('btnSendChat');
-const chatBadge        = $('chatBadge');
+const btnToggleChat    = null;
+const btnCloseChat     = null;
+const chatPanel        = null;
+const chatMessages     = null;
+const chatInput        = null;
+const btnSendChat      = null;
+const chatBadge        = null;
 
 const myAvatarSidebar  = $('myAvatarSidebar');
 const myNameSidebar    = $('myNameSidebar');
@@ -207,36 +207,11 @@ function hideScreen() {
 
 // ── Chat ──────────────────────────────────────────────────────
 function addChatMsg({ userId, userName: uName, message, timestamp, system = false }) {
-  const isMe = userId === socket.id;
-  const div  = document.createElement('div');
-  div.className = `chat-msg${system ? ' system' : isMe ? ' mine' : ''}`;
-
-  if (system) {
-    div.innerHTML = `<div class="chat-msg-text">${esc(message)}</div>`;
-  } else {
-    div.innerHTML = `
-      <div class="chat-msg-header">
-        <span class="chat-msg-author">${esc(uName)}</span>
-        <span class="chat-msg-time">${timeStr(timestamp)}</span>
-      </div>
-      <div class="chat-msg-text">${esc(message)}</div>`;
-  }
-
-  chatMessages.appendChild(div);
-  chatMessages.scrollTop = chatMessages.scrollHeight;
-
-  if (!chatOpen && !system) {
-    unreadCount++;
-    chatBadge.textContent = unreadCount > 9 ? '9+' : unreadCount;
-    chatBadge.classList.remove('hidden');
-  }
+  // Chat removido — não faz nada
 }
 
 function sendChat() {
-  const msg = chatInput.value.trim();
-  if (!msg) return;
-  socket.emit('chat-message', { roomId, message: msg });
-  chatInput.value = '';
+  // Chat removido
 }
 
 // ── WebRTC ────────────────────────────────────────────────────
@@ -515,22 +490,7 @@ function leaveRoom() {
 ctrlLeave?.addEventListener('click', leaveRoom);
 btnLeave?.addEventListener('click', leaveRoom);
 
-// Chat
-btnToggleChat?.addEventListener('click', () => {
-  chatOpen = !chatOpen;
-  chatPanel.classList.toggle('open', chatOpen);
-  if (chatOpen) {
-    unreadCount = 0;
-    chatBadge.classList.add('hidden');
-    chatInput.focus();
-  }
-});
-btnCloseChat?.addEventListener('click', () => {
-  chatOpen = false;
-  chatPanel.classList.remove('open');
-});
-btnSendChat?.addEventListener('click', sendChat);
-chatInput?.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); } });
+// Chat removido
 
 // Copiar link
 const roomLink = `${location.origin}/room/${roomId}`;
