@@ -92,7 +92,10 @@ function formatTime(ts) {
 // ─── UI: Participantes ────────────────────────────────────────────────────────
 function renderParticipants(users) {
   participantsList.innerHTML = '';
-  userCount.textContent = users.length;
+  const count = users.length;
+  if (userCount) userCount.textContent = count;
+  const pcEl = document.getElementById('participantCount');
+  if (pcEl) pcEl.textContent = count;
 
   const sorted = [...users].sort((a, b) => {
     if (a.id === socket.id) return -1;
@@ -103,15 +106,18 @@ function renderParticipants(users) {
   sorted.forEach(user => {
     const isMe = user.id === socket.id;
     const item = document.createElement('div');
-    item.className = `participant-item${isMe ? ' me' : ''}`;
+    // Suporta ambos os layouts (antigo e Discord)
+    item.className = `dc-voice-user${isMe ? ' me' : ''} participant-item${isMe ? ' me' : ''}`;
     item.dataset.userId = user.id;
 
     const color = getAvatarColor(user.id);
     item.innerHTML = `
-      <div class="avatar" style="background:${color}">${getInitial(user.name)}</div>
-      <span class="participant-name">${escapeHtml(user.name)}${isMe ? ' (você)' : ''}</span>
-      ${user.isSharing ? '<span class="icon-sharing" title="Compartilhando tela">🖥️</span>' : ''}
-      <div class="status-dot ${user.isSharing ? 'sharing' : 'online'}"></div>
+      <div class="dc-voice-user-avatar" style="background:${color}">${getInitial(user.name)}</div>
+      <span class="dc-voice-user-name participant-name">${escapeHtml(user.name)}${isMe ? ' (você)' : ''}</span>
+      <div class="dc-voice-user-icons">
+        ${user.isSharing ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none"><rect x="2" y="3" width="20" height="14" rx="2" stroke="#faa81a" stroke-width="2"/></svg>' : ''}
+        <div class="status-dot ${user.isSharing ? 'sharing' : 'online'}"></div>
+      </div>
     `;
     participantsList.appendChild(item);
   });
@@ -127,7 +133,7 @@ function createRemoteTile(userId, userName) {
   if (existing) return existing;
 
   const tile = document.createElement('div');
-  tile.className = 'video-tile';
+  tile.className = 'dc-video-tile';
   tile.id = `tile-${userId}`;
 
   const video = document.createElement('video');
@@ -136,7 +142,7 @@ function createRemoteTile(userId, userName) {
   video.id = `video-${userId}`;
 
   const label = document.createElement('div');
-  label.className = 'tile-label';
+  label.className = 'dc-tile-label';
   label.id = `label-${userId}`;
   label.textContent = userName;
 
@@ -179,9 +185,8 @@ function showScreenTile(userId, uName) {
   screenTile.classList.remove('hidden');
   videoGrid.classList.add('has-screen');
   screenLabel.innerHTML = `
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
       <rect x="2" y="3" width="20" height="14" rx="2" stroke="currentColor" stroke-width="1.5"/>
-      <path d="M8 21h8M12 17v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
     </svg>
     Tela de ${escapeHtml(uName)}
   `;
@@ -198,17 +203,17 @@ function appendChatMessage({ userId, userName: uName, message, timestamp, system
   const isMe = userId === socket.id;
 
   const div = document.createElement('div');
-  div.className = `chat-msg${system ? ' system' : isMe ? ' mine' : ''}`;
+  div.className = `dc-chat-msg${system ? ' system' : isMe ? ' mine' : ''}`;
 
   if (system) {
-    div.innerHTML = `<div class="chat-msg-text">${escapeHtml(message)}</div>`;
+    div.innerHTML = `<div class="dc-msg-text">${escapeHtml(message)}</div>`;
   } else {
     div.innerHTML = `
-      <div class="chat-msg-header">
-        <span class="chat-msg-author">${escapeHtml(uName)}</span>
-        <span class="chat-msg-time">${formatTime(timestamp)}</span>
+      <div class="dc-msg-header">
+        <span class="dc-msg-author">${escapeHtml(uName)}</span>
+        <span class="dc-msg-time">${formatTime(timestamp)}</span>
       </div>
-      <div class="chat-msg-text">${escapeHtml(message)}</div>
+      <div class="dc-msg-text">${escapeHtml(message)}</div>
     `;
   }
 
@@ -512,9 +517,13 @@ function initSocket() {
     myNameSidebar.textContent = userName;
     myAvatarSidebar.textContent = getInitial(userName);
     myAvatarSidebar.style.background = getAvatarColor(socket.id);
-    roomIdDisplay.textContent = roomId;
-    headerRoomName.textContent = `Sala #${roomId}`;
-    document.title = `TELAS — Sala #${roomId}`;
+    roomIdDisplay && (roomIdDisplay.textContent = roomId);
+    headerRoomName.textContent = `geral`;
+    document.title = `TELAS — #${roomId}`;
+
+    // Preenche info de voz estilo Discord
+    const voiceRoomId = document.getElementById('voiceRoomId');
+    if (voiceRoomId) voiceRoomId.textContent = roomId;
 
     const fullLink = `${window.location.origin}/room/${roomId}`;
     if (shareLinkInput) shareLinkInput.value = fullLink;
@@ -666,7 +675,8 @@ btnLeave.addEventListener('click', () => {
 // Chat
 btnToggleChat.addEventListener('click', () => {
   chatOpen = !chatOpen;
-  chatPanel.classList.toggle('open', chatOpen);
+  const panel = document.getElementById('chatPanel');
+  panel.classList.toggle('open', chatOpen);
   if (chatOpen) {
     unreadMessages = 0;
     chatBadge.classList.add('hidden');
@@ -674,9 +684,10 @@ btnToggleChat.addEventListener('click', () => {
   }
 });
 
-btnCloseChat.addEventListener('click', () => {
+const btnCloseChatEl = document.getElementById('btnCloseChat');
+if (btnCloseChatEl) btnCloseChatEl.addEventListener('click', () => {
   chatOpen = false;
-  chatPanel.classList.remove('open');
+  document.getElementById('chatPanel').classList.remove('open');
 });
 
 btnSendChat.addEventListener('click', sendChatMessage);
