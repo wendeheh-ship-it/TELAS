@@ -66,7 +66,7 @@ const headerRoomName   = $('headerRoomName');
 const voiceStatusRoom  = $('voiceStatusRoom');
 const shareLinkInput   = $('shareLinkInput');
 const btnCopyLink      = $('btnCopyLink');
-const btnCopyLinkMain  = $('btnCopyLinkMain');
+const btnCopyLinkMain  = null;
 const toastEl          = $('toast');
 
 // ── Utils ─────────────────────────────────────────────────────
@@ -129,8 +129,8 @@ function renderParticipants(users) {
   });
 
   const others = users.filter(u => u.id !== socket.id);
-  // invite-card fica visível só quando não há outros usuários
-  if (emptyState) emptyState.classList.toggle('hidden', others.length > 0);
+  // Esconde meu próprio card quando não há outros usuários
+  if (myVideoTile) myVideoTile.classList.toggle('hidden', others.length === 0);
 }
 
 // ── Tiles remotos ─────────────────────────────────────────────
@@ -419,6 +419,9 @@ function initSocket() {
 
     const link = `${location.origin}/room/${roomId}`;
     if (shareLinkInput) shareLinkInput.value = link;
+
+    // Esconde meu card até que outros entrem
+    if (myVideoTile) myVideoTile.classList.add('hidden');
 
     showMyOverlay();
   });
